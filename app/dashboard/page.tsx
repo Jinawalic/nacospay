@@ -25,7 +25,7 @@ export default function Dashboard() {
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <p className="text-[10px] font-black tracking-widest text-[#1c5d4a] uppercase">WELCOME BACK</p>
-          <h1 className="text-3xl font-black text-slate-800 tracking-tighter">Chidi Okonkwo</h1>
+          <h1 className="text-2xl font-bold text-slate-800 tracking-tighter">Chidi Okonkwo</h1>
         </div>
         <div className="flex gap-3">
           <button className="w-12 h-12 rounded-full bg-white border border-gray-100 flex items-center justify-center hover:bg-gray-50 transition-all shadow-sm">
@@ -43,7 +43,7 @@ export default function Dashboard() {
         <div className="relative z-10 space-y-4">
           <div className="space-y-1">
             <p className="text-sm font-bold text-white/70">NACOS Wallet Balance</p>
-            <h2 className="text-5xl font-black text-white tracking-tighter flex items-baseline gap-2">
+            <h2 className="text-2xl font-black text-white tracking-tighter flex items-baseline gap-2">
               ₦0.00
             </h2>
             <p className="text-xs font-bold text-white/50 pt-1 tracking-wide uppercase">2024/2025 Academic Session</p>
@@ -51,14 +51,14 @@ export default function Dashboard() {
 
           <div className="flex gap-4">
             <Button
-              className="flex-1 !bg-white !text-[#1c5d4a] hover:!bg-gray-50 !rounded-2xl h-14 font-black flex items-center justify-center gap-2"
+              className="flex-1 !bg-white !text-[#1c5d4a] hover:!bg-gray-50 !rounded-2xl h-10 font-black flex items-center justify-center gap-1"
             >
               <Plus size={20} strokeWidth={3} />
               Make Payment
             </Button>
             <Button
               variant="outline"
-              className="flex-1 !border-white/20 !text-white hover:!bg-white/10 !rounded-2xl h-14 font-bold"
+              className="flex-1 !border-white/20 !text-white hover:!bg-white/10 !rounded-2xl h-10 font-bold"
             >
               History
             </Button>
@@ -72,7 +72,7 @@ export default function Dashboard() {
 
       {/* QUICK ACTIONS */}
       <div className="space-y-5">
-        <h3 className="text-xl font-black text-slate-800 px-1">Quick Actions</h3>
+        <h3 className="text-xl font-bold text-slate-800 px-1">Quick Actions</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
             { label: 'NACOS Dues', icon: Briefcase, color: 'bg-green-50 text-[#1c5d4a]' },
@@ -96,7 +96,7 @@ export default function Dashboard() {
       {/* RECENT TRANSACTIONS */}
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-1">
-          <h3 className="text-xl font-black text-slate-800">Recent Transactions</h3>
+          <h3 className="text-xl font-bold text-slate-800">Recent Transactions</h3>
           <div className="w-full md:w-64">
             <Input
               label=""
@@ -116,7 +116,7 @@ export default function Dashboard() {
             <Monitor size={40} className="text-slate-300 group-hover:text-[#1c5d4a] transition-colors" />
           </div>
           <div className="text-center space-y-2">
-            <h4 className="text-lg font-black text-slate-800">No transactions yet</h4>
+            <h4 className="text-lg font-bold text-slate-800">No transactions yet</h4>
             <p className="text-sm font-bold text-slate-400 max-w-[220px] mx-auto leading-relaxed">
               Start making your payments to see your history here.
             </p>
