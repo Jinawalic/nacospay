@@ -1,0 +1,17 @@
+{
+  "name": "NACOS Pay Dashboard",
+  "short_name": "NACOSPay",
+  "description": "Payment portal for students of NACOS",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#21765c",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    }
+  ]
+}
