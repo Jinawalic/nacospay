@@ -8,6 +8,7 @@ import React, {
   useState,
   useSyncExternalStore,
 } from 'react';
+import Script from 'next/script';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -48,8 +49,26 @@ import { Input } from '@/app/components/Input';
 
 type Step = 1 | 2 | 3 | 4;
 type FilterKey = 'all' | 'dues' | 'merchandise';
+type PaystackSuccess = { reference: string };
 
-const paymentMethod = 'Card payment';
+declare global {
+  interface Window {
+    PaystackPop?: new () => {
+      newTransaction: (options: {
+        key: string;
+        email: string;
+        amount: number;
+        currency?: string;
+        onSuccess?: (transaction: PaystackSuccess) => void;
+        onCancel?: () => void;
+        onError?: (error: { message?: string }) => void;
+      }) => void;
+    };
+  }
+}
+
+const paymentMethod = 'Paystack';
+const paystackPublicKey = 'pk_test_6aed518f320cf74c905058e0ee94d445bca28100';
 const filterOptions: { key: FilterKey; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: 'dues', label: 'NACOS Dues' },
@@ -64,8 +83,12 @@ function parseType(value: string | null): TransactionKind | null {
   return null;
 }
 
-function buildTransaction(kind: TransactionKind, selectedLevels: string[]): Transaction {
-  const txnId = makeTxnId();
+function buildTransaction(
+  kind: TransactionKind,
+  selectedLevels: string[],
+  reference?: string,
+): Transaction {
+  const txnId = reference ?? makeTxnId();
   const now = new Date().toISOString();
 
   if (kind === 'dues') {
@@ -116,6 +139,7 @@ function ActivityPageBody() {
   const [typeLoading, setTypeLoading] = useState<TransactionKind | null>(null);
   const [proceedLoading, setProceedLoading] = useState(false);
   const [payLoading, setPayLoading] = useState(false);
+  const [paystackReady, setPaystackReady] = useState(false);
   const [downloadLoading, setDownloadLoading] = useState(false);
   const [receiptTransaction, setReceiptTransaction] = useState<Transaction | null>(null);
   const timers = useRef<number[]>([]);
@@ -141,10 +165,6 @@ function ActivityPageBody() {
       return transaction.kind === 'merchandise';
     });
   }, [filter, transactions]);
-
-  const totalPaid = useMemo(() => {
-    return transactions.reduce((sum, transaction) => sum + transaction.amount, 0);
-  }, [transactions]);
 
   const selectedDuesTotal = selectedLevels.length * duesLevels[0].amount;
   const currentAmount =
@@ -247,6 +267,23 @@ function ActivityPageBody() {
     timers.current.push(timer);
   };
 
+  const handleSuccessfulPayment = (reference: string) => {
+    if (!selectedType) {
+      return;
+    }
+
+    const transaction = buildTransaction(selectedType, selectedLevels, reference);
+    const nextTransactions = [
+      transaction,
+      ...transactions.filter((item) => item.txnId !== transaction.txnId),
+    ];
+
+    setTransactionsSnapshot(nextTransactions);
+    setReceiptTransaction(transaction);
+    setPayLoading(false);
+    setStep(4);
+  };
+
   const handlePayNow = () => {
     if (!selectedType) {
       return;
@@ -255,14 +292,31 @@ function ActivityPageBody() {
     clearTimers();
     setPayLoading(true);
 
-    const timer = window.setTimeout(() => {
-      const transaction = buildTransaction(selectedType, selectedLevels);
-      setReceiptTransaction(transaction);
+    if (!paystackReady || !window.PaystackPop) {
       setPayLoading(false);
-      setStep(4);
-    }, 2000);
+      return;
+    }
 
-    timers.current.push(timer);
+    try {
+      const paystack = new window.PaystackPop();
+      paystack.newTransaction({
+        key: paystackPublicKey,
+        email: 'jinawa.titus@nacos.edu.ng',
+        amount: currentAmount * 100,
+        currency: 'NGN',
+        onSuccess: (transaction) => {
+          handleSuccessfulPayment(transaction.reference);
+        },
+        onCancel: () => {
+          setPayLoading(false);
+        },
+        onError: () => {
+          setPayLoading(false);
+        },
+      });
+    } catch {
+      setPayLoading(false);
+    }
   };
 
   const handleDownloadReceipt = async () => {
@@ -324,12 +378,6 @@ function ActivityPageBody() {
       doc.text(`Total paid: ${formatCurrency(receiptTransaction.amount)}`, margin, y + 18);
       doc.save(`${receiptTransaction.txnId}.pdf`);
 
-      const nextTransactions = [
-        receiptTransaction,
-        ...transactions.filter((item) => item.txnId !== receiptTransaction.txnId),
-      ];
-      setTransactionsSnapshot(nextTransactions);
-
       setTimeout(() => {
         setDownloadLoading(false);
         setIsModalOpen(false);
@@ -366,6 +414,13 @@ function ActivityPageBody() {
 
   return (
     <main className="min-h-screen bg-[#f8fafc] lg:px-6 lg:py-6">
+      <Script
+        id="paystack-inline-js"
+        src="https://js.paystack.co/v2/inline.js"
+        strategy="afterInteractive"
+        onLoad={() => setPaystackReady(true)}
+      />
+
       <section className="mx-auto flex min-h-screen w-full flex-col bg-[#f8fafc] lg:min-h-[calc(100vh-3rem)] lg:max-w-7xl lg:rounded-[32px] lg:border lg:border-gray-200 lg:bg-white lg:px-8 lg:py-8 lg:shadow-[0_30px_90px_rgba(0,0,0,0.08)]">
         <div className="flex-1 px-5 pb-6 pt-6 lg:px-0 lg:pb-0 lg:pt-0">
           <div className="mb-6 flex items-center justify-between gap-4">
