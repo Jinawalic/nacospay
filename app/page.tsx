@@ -56,7 +56,7 @@ export default function Login() {
           <div className="w-full max-w-md">
             {/* Desktop Brand Header */}
 
-            <Card className="p-8 lg:p-12 !rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.04)] border-gray-50 bg-white">
+            <Card className="p-8 lg:p-12 !rounded-xl border-gray-50 bg-white">
               <form onSubmit={handleLogin} className="space-y-8">
                 <Input
                   label="Matriculation Number"
