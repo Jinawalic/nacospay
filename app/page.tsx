@@ -125,7 +125,7 @@ export default function Login() {
           <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white px-20 via-transparent to-transparent pointer-events-none" />
 
           <div className="relative z-10 w-full max-w-lg">
-            <h2 className="text-2xl font-extrabold mb-2 tracking-tight leading-tight">
+            <h2 className="text-2xl font-bold mb-2 ">
               Manage your departmental <br />
               payments with <span className="text-green-300">ease</span>.
             </h2>

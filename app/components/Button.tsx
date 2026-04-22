@@ -11,7 +11,7 @@ export function Button({ variant = 'primary', fullWidth, className = '', ...prop
   const variants = {
     primary: 'bg-nacos text-white hover:bg-nacos-hover hover:shadow-nacos/40',
     secondary: 'bg-green-50 dark:bg-nacos/10 text-nacos hover:bg-green-100 dark:hover:bg-nacos/20',
-    outline: 'border-2 border-nacos text-nacos hover:bg-nacos hover:text-white',
+    outline: 'border-1 border-nacos text-nacos hover:bg-nacos hover:text-white',
     ghost: 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800',
   };
 
