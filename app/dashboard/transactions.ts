@@ -11,6 +11,7 @@ export type Transaction = {
   dateISO: string;
   status: 'Paid';
   paymentMethod: string;
+  matricNo?: string;
 };
 
 export const studentName = 'Jinawa Titus';

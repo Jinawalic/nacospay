@@ -349,15 +349,17 @@ function ActivityPageBody() {
       doc.setLineWidth(1);
       doc.line(margin, 140, 553, 140);
 
+      const pdfCurrency = (amount: number) => `NGN ${amount.toLocaleString('en-NG')}`;
+
       const rows = [
         ['TXN ID', receiptTransaction.txnId],
         ['Student', receiptTransaction.student],
+        ['Matric.No', receiptTransaction.matricNo || 'NACOS/CS/24/019'],
         ['Type', receiptTransaction.typeLabel],
         ['Details', receiptTransaction.details],
-        ['Amount', formatCurrency(receiptTransaction.amount)],
+        ['Amount', pdfCurrency(receiptTransaction.amount)],
         ['Date', new Date(receiptTransaction.dateISO).toLocaleString('en-NG')],
         ['Status', receiptTransaction.status],
-        ['Method', receiptTransaction.paymentMethod],
       ] as const;
 
       y = 168;
@@ -375,7 +377,7 @@ function ActivityPageBody() {
       doc.setTextColor(11, 79, 54);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(13);
-      doc.text(`Total paid: ${formatCurrency(receiptTransaction.amount)}`, margin, y + 18);
+      doc.text(`Total paid: ${pdfCurrency(receiptTransaction.amount)}`, margin, y + 18);
       doc.save(`${receiptTransaction.txnId}.pdf`);
 
       setTimeout(() => {

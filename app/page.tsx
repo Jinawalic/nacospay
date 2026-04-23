@@ -15,11 +15,32 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  const [showFirstLoginModal, setShowFirstLoginModal] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isChanging, setIsChanging] = useState(false);
+
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    
+    // Simulation: check if password is "password" (default) or just trigger for demo
     setTimeout(() => {
       setIsLoading(false);
+      if (password === 'password') {
+        setShowFirstLoginModal(true);
+      } else {
+        router.push('/dashboard');
+      }
+    }, 1500);
+  };
+
+  const handlePasswordUpdate = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsChanging(true);
+    setTimeout(() => {
+      setIsChanging(false);
+      setShowFirstLoginModal(false);
       router.push('/dashboard');
     }, 1500);
   };
@@ -153,6 +174,72 @@ export default function Login() {
           </div>
         </div>
       </div>
+
+      {/* First Time Login Password Change Modal */}
+      {showFirstLoginModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="w-full max-w-md animate-in zoom-in-95 duration-300">
+            <Card className="p-8 lg:p-10 !rounded-[2rem] border-white shadow-2xl relative overflow-hidden bg-white">
+              {/* Decoration */}
+              <div className="absolute top-0 right-0 w-32 h-32 bg-[#1c5d4a]/5 rounded-full -mr-16 -mt-16" />
+              
+              <div className="relative z-10">
+                <div className="mb-8">
+                  <h2 className="text-2xl font-black text-slate-800 tracking-tight">Security Update</h2>
+                  <p className="text-slate-500 mt-2 font-medium leading-relaxed">
+                    This is your first time logging in! For your safety, please update your default password or continue to the dashboard.
+                  </p>
+                </div>
+
+                <form onSubmit={handlePasswordUpdate} className="space-y-5">
+                  <Input
+                    label="New Password"
+                    type="password"
+                    placeholder="Create a strong password"
+                    icon={<Lock size={18} />}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="!rounded-2xl h-14 bg-slate-50 focus:bg-white text-[15px]"
+                    required
+                  />
+
+                  <Input
+                    label="Confirm New Password"
+                    type="password"
+                    placeholder="Verify your password"
+                    icon={<Lock size={18} />}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="!rounded-2xl h-14 bg-slate-50 focus:bg-white text-[15px]"
+                    required
+                  />
+
+                  <div className="flex flex-col gap-3 pt-4">
+                    <Button
+                      type="submit"
+                      disabled={isChanging}
+                      className="!rounded-2xl py-4 font-bold bg-[#1c5d4a] hover:bg-[#154638] text-white shadow-lg shadow-[#1c5d4a]/20 transition-all"
+                    >
+                      {isChanging ? (
+                        <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto" />
+                      ) : (
+                        "Update & Proceed"
+                      )}
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={() => { setShowFirstLoginModal(false); router.push('/dashboard'); }}
+                      className="py-3 text-sm font-bold text-slate-400 hover:text-slate-600 transition-colors"
+                    >
+                      Maybe Later, Dashboard
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </Card>
+          </div>
+        </div>
+      )}
 
       <style jsx global>{`
         body {

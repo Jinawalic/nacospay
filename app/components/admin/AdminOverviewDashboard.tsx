@@ -1,3 +1,5 @@
+"use client";
+
 import {
   ArrowRight,
   Banknote,
@@ -11,7 +13,8 @@ import type { AdminDueItem, AdminStudent, AdminTransaction } from '@/app/admin/a
 import { formatCurrency, formatDate } from '@/app/dashboard/transactions';
 import {
   AdminMetricCard,
-  AdminSalePerformanceCard,
+  AdminPaymentAnalyticsCard,
+  AdminLevelsHighlightCard,
 } from './AdminDashboardWidgets';
 import { AdminTopBar } from './AdminTopBar';
 import { Card } from '@/app/components/Card';
@@ -128,13 +131,13 @@ export function AdminOverviewDashboard({
         />
         <AdminMetricCard
           icon={ShieldCheck}
-          title="All Payments"
-          value={String(paidCount)}
+          title="NACOS Dues"
+          value={formatCurrency(revenue)}
         />
         <AdminMetricCard
           icon={Wallet}
-          title="Published dues"
-          value={String(publishedDues)}
+          title="T-shirt & ID"
+          value={formatCurrency(revenue)}
         />
         <AdminMetricCard
           icon={TrendingUp}
@@ -143,8 +146,13 @@ export function AdminOverviewDashboard({
         />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,2.05fr)]">
-        <AdminSalePerformanceCard stats={performanceStats} bars={weeklyPerformance} />
+      <div className="flex flex-col lg:flex-row gap-6">
+        <div className="w-full lg:w-[60%]">
+          <AdminPaymentAnalyticsCard />
+        </div>
+        <div className="w-full lg:w-[40%]">
+          <AdminLevelsHighlightCard />
+        </div>
       </div>
 
       <div className="mt-8 space-y-4">

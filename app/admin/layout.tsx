@@ -126,7 +126,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         <button
           type="button"
-          onClick={() => router.push('/')}
+          onClick={() => router.push('/admin/login')}
           className={[
             'flex w-full items-center gap-3 rounded-2xl px-4 py-4 text-left text-sm font-bold text-red-500 transition-all hover:bg-red-50',
             collapsed ? 'justify-center px-0' : '',
@@ -141,46 +141,50 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-900">
-      <div className="flex min-h-screen">
-        <aside
-          className={[
-            'fixed inset-y-0 left-0 z-50 flex w-80 flex-col border-r border-gray-100 bg-white p-5 shadow-[0_18px_60px_rgba(0,0,0,0.12)] transition-transform duration-300 lg:sticky lg:top-0 lg:h-screen lg:shadow-sm',
-            collapsed ? 'lg:w-24' : 'lg:w-80',
-            mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
-          ].join(' ')}
-        >
-          {sidebarContent}
-        </aside>
+      {pathname === '/admin/login' ? (
+        children
+      ) : (
+        <div className="flex min-h-screen">
+          <aside
+            className={[
+              'fixed inset-y-0 left-0 z-50 flex w-80 flex-col border-r border-gray-100 bg-white p-5 shadow-[0_18px_60px_rgba(0,0,0,0.12)] transition-transform duration-300 lg:sticky lg:top-0 lg:h-screen lg:shadow-sm',
+              collapsed ? 'lg:w-24' : 'lg:w-80',
+              mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+            ].join(' ')}
+          >
+            {sidebarContent}
+          </aside>
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-40 flex items-center justify-between border-b border-gray-100 bg-white/90 px-4 py-4 backdrop-blur-xl lg:hidden">
-            <button
-              type="button"
-              onClick={() => setMobileOpen(true)}
-              className="flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-200 bg-white text-slate-700"
-            >
-              <Menu size={20} />
-            </button>
+          <div className="flex min-w-0 flex-1 flex-col">
+            <header className="sticky top-0 z-40 flex items-center justify-between border-b border-gray-100 bg-white/90 px-4 py-4 backdrop-blur-xl lg:hidden">
+              <button
+                type="button"
+                onClick={() => setMobileOpen(true)}
+                className="flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-200 bg-white text-slate-700"
+              >
+                <Menu size={20} />
+              </button>
 
-            <div className="text-center">
-              <p className="text-[10px] font-black tracking-[0.24em] text-[#1c5d4a]">ADMIN</p>
-              <h2 className="text-sm font-black tracking-tight text-slate-800">NACOSPAY</h2>
-            </div>
+              <div className="text-center">
+                <p className="text-[10px] font-black tracking-[0.24em] text-[#1c5d4a]">ADMIN</p>
+                <h2 className="text-sm font-black tracking-tight text-slate-800">NACOSPAY</h2>
+              </div>
 
-            <button
-              type="button"
-              onClick={() => setMobileOpen(false)}
-              className="flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-200 bg-white text-slate-700 opacity-0"
-            >
-              <X size={20} />
-            </button>
-          </header>
+              <button
+                type="button"
+                onClick={() => setMobileOpen(false)}
+                className="flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-200 bg-white text-slate-700 opacity-0"
+              >
+                <X size={20} />
+              </button>
+            </header>
 
-          <main className="min-h-[calc(100vh-4rem)] p-4 pb-10 sm:p-6 lg:p-8">{children}</main>
+            <main className="min-h-[calc(100vh-4rem)] p-4 pb-10 sm:p-6 lg:p-8">{children}</main>
+          </div>
         </div>
-      </div>
+      )}
 
-      {mobileOpen && (
+      {mobileOpen && pathname !== '/admin/login' && (
         <button
           type="button"
           aria-label="Close admin sidebar"
@@ -189,12 +193,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         />
       )}
 
-      <aside
-        className={[
-          'fixed inset-y-0 left-0 z-50 flex w-80 flex-col border-r border-gray-100 bg-white p-5 shadow-[0_18px_60px_rgba(0,0,0,0.12)] transition-transform duration-300 lg:hidden',
-          mobileOpen ? 'translate-x-0' : '-translate-x-full',
-        ].join(' ')}
-      >
+      {pathname !== '/admin/login' && (
+        <aside
+          className={[
+            'fixed inset-y-0 left-0 z-50 flex w-80 flex-col border-r border-gray-100 bg-white p-5 shadow-[0_18px_60px_rgba(0,0,0,0.12)] transition-transform duration-300 lg:hidden',
+            mobileOpen ? 'translate-x-0' : '-translate-x-full',
+          ].join(' ')}
+        >
         <div className="flex items-center justify-between gap-3 px-2">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#1c5d4a]">
@@ -248,7 +253,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="mt-auto space-y-3">
           <button
             type="button"
-            onClick={() => router.push('/')}
+            onClick={() => router.push('/admin/login')}
             className="flex w-full items-center gap-3 rounded-2xl px-4 py-4 text-left text-sm font-bold text-red-500 transition-all hover:bg-red-50"
           >
             <X size={18} />
@@ -256,6 +261,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </button>
         </div>
       </aside>
+      )}
     </div>
   );
 }
