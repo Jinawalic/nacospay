@@ -164,7 +164,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
             <div className="text-center">
               <p className="text-[10px] font-black tracking-[0.24em] text-[#1c5d4a]">ADMIN</p>
-              <h2 className="text-sm font-black tracking-tight text-slate-800">NACOS Pay</h2>
+              <h2 className="text-sm font-black tracking-tight text-slate-800">NACOSPAY</h2>
             </div>
 
             <button

@@ -112,7 +112,7 @@ export function AdminSalePerformanceCard({
     <Card className="overflow-hidden !rounded-[1.2rem] !border-0 !bg-white p-6 text-gray-700 ">
       <div className="flex items-start justify-between gap-4">
         <h3 className="text-xl font-bold text-gray-800">
-          Sales Performance
+          Payment Analytics
         </h3>
       </div>
 
