@@ -7,6 +7,7 @@ export type AdminStudent = {
   level: string;
   status: 'Active' | 'Pending' | 'Inactive';
   joined: string;
+  password?: string;
 };
 
 export type AdminDueItem = {

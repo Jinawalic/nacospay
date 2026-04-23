@@ -1,0 +1,63 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Admin {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  phone     String?
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Student {
+  id           String        @id @default(cuid())
+  name         String
+  matricNo     String        @unique
+  email        String        @unique
+  department   String
+  level        String
+  status       String        @default("Active") // Active, Pending, Inactive
+  password     String        @default("12345678")
+  joined       DateTime      @default(now())
+  transactions Transaction[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Due {
+  id          String   @id @default(cuid())
+  title       String
+  audience    String   @default("All Levels")
+  amount      Float
+  session     String
+  description String?
+  status      String   @default("Published") // Published, Draft
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Transaction {
+  id            String   @id @default(cuid())
+  reference     String   @unique
+  studentId     String
+  student       Student  @relation(fields: [studentId], references: [id])
+  type          String   // Dues, Merchandise, Event
+  details       String?
+  amount        Float
+  date          DateTime @default(now())
+  status        String   @default("Paid") // Paid, Pending, Failed
+  channel       String   @default("Paystack") // Paystack, Card, Bank Transfer
+  paymentMethod String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}

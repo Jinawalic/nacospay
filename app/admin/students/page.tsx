@@ -34,11 +34,31 @@ export default function AdminStudentsPage() {
   const [studentToEdit, setStudentToEdit] = useState<AdminStudent | null>(null);
   const [studentToDelete, setStudentToDelete] = useState<AdminStudent | null>(null);
   const [successMessage, setSuccessMessage] = useState<string>('');
-  
+
   // Creation Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [isLoadingStudents, setIsLoadingStudents] = useState(true);
+
+  const fetchStudents = async () => {
+    setIsLoadingStudents(true);
+    try {
+      const response = await fetch('/api/admin/students');
+      if (response.ok) {
+        const data = await response.json();
+        setStudents(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch students:', error);
+    } finally {
+      setIsLoadingStudents(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStudents();
+  }, []);
 
   const [addForm, setAddForm] = useState({
     name: '',
@@ -96,57 +116,110 @@ export default function AdminStudentsPage() {
     }
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (studentToDelete) {
-      setStudents(prev => prev.filter(s => s.id !== studentToDelete.id));
-      setSuccessMessage('Student deleted successfully!');
-      setStudentToDelete(null);
-      setTimeout(() => setSuccessMessage(''), 3000);
+      setSaving(true);
+      try {
+        const response = await fetch(`/api/admin/students/${studentToDelete.id}`, {
+          method: 'DELETE',
+        });
+
+        if (response.ok) {
+          await fetchStudents();
+          setSuccessMessage('Student record has been deleted successfully!');
+          setStudentToDelete(null);
+          setTimeout(() => setSuccessMessage(''), 5000);
+        }
+      } catch (error) {
+        console.error('Error deleting student:', error);
+      } finally {
+        setSaving(false);
+      }
     }
   };
 
-  const confirmEdit = (e: React.FormEvent) => {
+  const confirmEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (studentToEdit) {
-      setStudents(prev => prev.map(s => s.id === studentToEdit.id ? studentToEdit : s));
-      setSuccessMessage('Student updated successfully!');
-      setStudentToEdit(null);
-      setTimeout(() => setSuccessMessage(''), 3000);
+      setSaving(true);
+      try {
+        const response = await fetch(`/api/admin/students/${studentToEdit.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(studentToEdit),
+        });
+
+        if (response.ok) {
+          await fetchStudents();
+          setSuccessMessage('Student record has been updated successfully!');
+          setStudentToEdit(null);
+          setTimeout(() => setSuccessMessage(''), 5000);
+        }
+      } catch (error) {
+        console.error('Error updating student:', error);
+      } finally {
+        setSaving(false);
+      }
     }
   };
 
-  const handleAddSubmit = (e: React.FormEvent) => {
+  const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    setTimeout(() => {
-      const newStudent: AdminStudent = {
-        id: `stu-${Date.now()}`,
-        name: addForm.name,
-        email: addForm.email,
-        matricNo: addForm.matricNo,
-        department: addForm.department,
-        level: addForm.level,
-        status: 'Active',
-        joined: new Date().toISOString().split('T')[0],
-      };
-      setStudents(prev => [newStudent, ...prev]);
+    try {
+      const response = await fetch('/api/admin/students', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(addForm),
+      });
+
+      if (response.ok) {
+        await fetchStudents();
+        setIsAddModalOpen(false);
+        setAddForm({ name: '', email: '', matricNo: '', department: '', level: '100L' });
+        setSuccessMessage('Student record has been created successfully!');
+        setTimeout(() => setSuccessMessage(''), 5000);
+      } else {
+        const data = await response.json();
+        alert(data.error || 'Failed to add student');
+      }
+    } catch (error) {
+      console.error('Error adding student:', error);
+    } finally {
       setSaving(false);
-      setIsAddModalOpen(false);
-      setAddForm({ name: '', email: '', matricNo: '', department: '', level: '100L' });
-      setSuccessMessage('Student added successfully!');
-      setTimeout(() => setSuccessMessage(''), 3000);
-    }, 600);
+    }
   };
 
-  const handleBulkSubmit = (e: React.FormEvent) => {
+  const handleBulkSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    setTimeout(() => {
+
+    // Simulation: in a real app, you'd parse CSV/Excel here. 
+    // We'll simulate bulk data based on a fixed set for demo purposes.
+    const dummyBulk = [
+      { name: 'Bulk Student 1', email: 'bulk1@nacos.edu.ng', matricNo: `NACOS/BULK/${Date.now()}-1`, department: 'Computer Science', level: '100L' },
+      { name: 'Bulk Student 2', email: 'bulk2@nacos.edu.ng', matricNo: `NACOS/BULK/${Date.now()}-2`, department: 'Software Engineering', level: '200L' },
+    ];
+
+    try {
+      const response = await fetch('/api/admin/students', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dummyBulk),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        await fetchStudents();
+        setIsBulkModalOpen(false);
+        setSuccessMessage(`${data.count || 2} students have been imported successfully!`);
+        setTimeout(() => setSuccessMessage(''), 5000);
+      }
+    } catch (error) {
+      console.error('Error with bulk upload:', error);
+    } finally {
       setSaving(false);
-      setIsBulkModalOpen(false);
-      setSuccessMessage('Bulk upload processed successfully!');
-      setTimeout(() => setSuccessMessage(''), 3000);
-    }, 1500);
+    }
   };
 
   return (
@@ -231,7 +304,22 @@ export default function AdminStudentsPage() {
               </tr>
             </thead>
             <tbody>
-              {paginatedStudents.map((student) => {
+              {isLoadingStudents ? (
+                <tr>
+                  <td colSpan={6} className="px-5 py-20 text-center">
+                    <div className="flex flex-col items-center gap-2">
+                      <Loader2 className="animate-spin text-[#1c5d4a]" size={32} />
+                      <p className="text-sm font-medium text-slate-500">Retrieving student records...</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : paginatedStudents.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-5 py-20 text-center">
+                    <p className="text-sm font-medium text-slate-500">No student records found.</p>
+                  </td>
+                </tr>
+              ) : paginatedStudents.map((student) => {
                 const isChecked = selectedIds.includes(student.id);
                 return (
                   <tr key={student.id} className="border-b border-gray-100 last:border-none hover:bg-slate-50 transition-colors">
@@ -318,8 +406,10 @@ export default function AdminStudentsPage() {
               Are you sure you want to delete <strong>{studentToDelete.name}</strong>? This action cannot be undone.
             </p>
             <div className="mt-6 flex justify-end gap-3">
-              <Button variant="ghost" onClick={() => setStudentToDelete(null)}>Cancel</Button>
-              <Button className="bg-red-500 hover:bg-red-600 text-white" onClick={confirmDelete}>Delete</Button>
+              <Button variant="ghost" disabled={saving} onClick={() => setStudentToDelete(null)}>Cancel</Button>
+              <Button className="bg-red-500 hover:bg-red-600 text-white" disabled={saving} onClick={confirmDelete}>
+                {saving ? 'Deleting...' : 'Delete'}
+              </Button>
             </div>
           </Card>
         </div>
@@ -337,19 +427,39 @@ export default function AdminStudentsPage() {
             </div>
 
             <form onSubmit={confirmEdit} className="space-y-4">
-              <Input
-                label="Student Name"
-                value={studentToEdit.name}
-                onChange={(e) => setStudentToEdit({ ...studentToEdit, name: e.target.value })}
-                required
-              />
-              <Input
-                label="Matric Number"
-                value={studentToEdit.matricNo}
-                onChange={(e) => setStudentToEdit({ ...studentToEdit, matricNo: e.target.value })}
-                required
-              />
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input
+                  label="Student Name"
+                  value={studentToEdit.name}
+                  onChange={(e) => setStudentToEdit({ ...studentToEdit, name: e.target.value })}
+                  required
+                />
+                <Input
+                  label="Matric Number"
+                  value={studentToEdit.matricNo}
+                  onChange={(e) => setStudentToEdit({ ...studentToEdit, matricNo: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input
+                  label="Email Address"
+                  type="email"
+                  value={studentToEdit.email}
+                  onChange={(e) => setStudentToEdit({ ...studentToEdit, email: e.target.value })}
+                  required
+                />
+                <Input
+                  label="Login Password"
+                  type="text"
+                  placeholder="Reset to 12345678"
+                  value={studentToEdit.password || ''}
+                  onChange={(e) => setStudentToEdit({ ...studentToEdit, password: e.target.value })}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
                   label="Department"
                   value={studentToEdit.department}
@@ -371,26 +481,19 @@ export default function AdminStudentsPage() {
                   </select>
                 </div>
               </div>
+
               <div className="mt-6 flex justify-end gap-3 pt-2">
-                <Button variant="ghost" type="button" onClick={() => setStudentToEdit(null)}>Cancel</Button>
-                <Button variant="primary" type="submit" className="bg-[#1c5d4a] hover:bg-[#154638]">Save Changes</Button>
+                <Button variant="ghost" type="button" disabled={saving} onClick={() => setStudentToEdit(null)}>Cancel</Button>
+                <Button variant="primary" type="submit" disabled={saving} className="bg-[#1c5d4a] hover:bg-[#154638]">
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </Button>
               </div>
             </form>
           </Card>
         </div>
       )}
 
-      {/* Success Notification */}
-      {successMessage && (
-        <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-5 fade-in duration-300">
-          <Card className="flex items-center gap-3 px-5 py-4 border-l-4 border-l-[#1c5d4a] shadow-lg">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#1c5d4a]/10 text-[#1c5d4a]">
-              <Check size={16} strokeWidth={3} />
-            </div>
-            <p className="text-sm font-bold text-slate-800">{successMessage}</p>
-          </Card>
-        </div>
-      )}
+
 
       {/* Add Single Student Modal */}
       {isAddModalOpen && (
@@ -402,7 +505,7 @@ export default function AdminStudentsPage() {
                 <X size={20} />
               </button>
             </div>
-            
+
             <form onSubmit={handleAddSubmit} className="space-y-5">
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="space-y-2 text-sm font-medium text-slate-600">
@@ -507,7 +610,7 @@ export default function AdminStudentsPage() {
                 <X size={20} />
               </button>
             </div>
-            
+
             <form onSubmit={handleBulkSubmit} className="space-y-6">
               <div className="w-full flex-col flex items-center justify-center rounded-2xl border-2 border-dashed border-gray-300 bg-slate-50/50 p-8 text-center transition-colors hover:border-[#1c5d4a]/50 hover:bg-[#1c5d4a]/5">
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#1c5d4a]/10 text-[#1c5d4a] mb-4">
@@ -560,6 +663,22 @@ export default function AdminStudentsPage() {
           </Card>
         </div>
       )}
+      {/* Real Success Toast Notification */}
+      <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] transition-all duration-500 ${successMessage ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0 pointer-events-none'}`}>
+        <Card className="flex items-center gap-4 py-4 px-6 !rounded-2xl border-0 bg-[#1c5d4a] text-white shadow-[0_20px_50px_rgba(28,93,74,0.3)]">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/20">
+            <Check size={20} strokeWidth={3} />
+          </div>
+          <div className="pr-2">
+            <p className="text-[15px] font-bold">Action Completed</p>
+            <p className="text-sm font-medium text-white/80">{successMessage}</p>
+          </div>
+          <button onClick={() => setSuccessMessage('')} className="ml-2 h-8 w-8 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors">
+            <X size={16} />
+          </button>
+        </Card>
+      </div>
+
     </div>
   );
 }

@@ -15,34 +15,101 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  const [isChanging, setIsChanging] = useState(false);
   const [showFirstLoginModal, setShowFirstLoginModal] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [isChanging, setIsChanging] = useState(false);
+  const [showForgotModal, setShowForgotModal] = useState(false);
+  const [forgotData, setForgotData] = useState({ matricNo: '', email: '' });
+  const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    
-    // Simulation: check if password is "password" (default) or just trigger for demo
-    setTimeout(() => {
-      setIsLoading(false);
-      if (password === 'password') {
-        setShowFirstLoginModal(true);
-      } else {
-        router.push('/dashboard');
-      }
-    }, 1500);
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 5000);
   };
 
-  const handlePasswordUpdate = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('/api/student/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ matricNo: matricNumber, password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        if (data.isFirstLogin) {
+          setShowFirstLoginModal(true);
+        } else {
+          showToast('Login successful! Welcome back.');
+          setTimeout(() => router.push('/dashboard'), 1000);
+        }
+      } else {
+        showToast(data.error || 'Login failed. Please check your credentials.', 'error');
+      }
+    } catch (error) {
+      showToast('An error occurred during login.', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePasswordUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      showToast('Passwords do not match!', 'error');
+      return;
+    }
+
     setIsChanging(true);
-    setTimeout(() => {
+    try {
+      const response = await fetch('/api/student/update-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ matricNo: matricNumber, newPassword }),
+      });
+
+      if (response.ok) {
+        showToast('Password updated successfully! Redirecting...');
+        setTimeout(() => {
+          setShowFirstLoginModal(false);
+          router.push('/dashboard');
+        }, 2000);
+      } else {
+        showToast('Failed to update password.', 'error');
+      }
+    } catch (error) {
+      showToast('An error occurred.', 'error');
+    } finally {
       setIsChanging(false);
-      setShowFirstLoginModal(false);
-      router.push('/dashboard');
-    }, 1500);
+    }
+  };
+
+  const handleForgotSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/student/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(forgotData),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        showToast(data.message);
+        setShowForgotModal(false);
+      } else {
+        showToast(data.error, 'error');
+      }
+    } catch (error) {
+      showToast('An error occurred.', 'error');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const features = [
@@ -56,7 +123,7 @@ export default function Login() {
   return (
     <main className="h-screen w-full bg-[#f8fafc] flex flex-col font-sans lg:overflow-hidden overflow-auto">
       {/* HEADER BAR (Visible on Mobile, Hidden on Desktop Split) */}
-      <header className="lg:hidden w-full flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-white shadow-sm z-50">
+      <header className="lg:hidden w-full flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-white z-50">
         <div className="flex items-center gap-3">
           <div className="relative w-6 h-6">
             <Image
@@ -108,7 +175,7 @@ export default function Login() {
                     <Eye size={20} />
                   </button>
                   <div className="flex justify-end mt-2">
-                    <button type="button" className="text-sm font-bold text-nacos hover:underline">
+                    <button type="button" onClick={() => setShowForgotModal(true)} className="text-sm font-bold text-nacos hover:underline">
                       Forgot password?
                     </button>
                   </div>
@@ -175,17 +242,59 @@ export default function Login() {
         </div>
       </div>
 
+      {/* Toast Notification */}
+      {toast && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-top-5 duration-300">
+          <Card className={`p-4 min-w-[320px] flex items-center gap-3 border-0 !rounded-2xl !bg-[#1c5d4a] text-white`}>
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/20">
+              <Check size={18} strokeWidth={3} />
+            </div>
+            <p className="text-sm font-bold flex-1 text-white">{toast.message}</p>
+          </Card>
+        </div>
+      )}
+
+      {/* Forgot Password Modal */}
+      {showForgotModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+          <Card className="w-full max-w-sm p-8 !rounded-2xl animate-in zoom-in-95 duration-200 bg-white">
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Reset Password</h3>
+            <p className="text-sm text-gray-500 mb-6 font-medium">Enter your details to verify your identity.</p>
+            <form onSubmit={handleForgotSubmit} className="space-y-4">
+              <Input
+                label="Matric Number"
+                placeholder="NACOS/CS/..."
+                value={forgotData.matricNo}
+                onChange={(e) => setForgotData({ ...forgotData, matricNo: e.target.value })}
+                required
+              />
+              <Input
+                label="Email Address"
+                placeholder="your@email.com"
+                value={forgotData.email}
+                onChange={(e) => setForgotData({ ...forgotData, email: e.target.value })}
+                required
+              />
+              <div className="flex gap-3 pt-4">
+                <Button variant="ghost" type="button" onClick={() => setShowForgotModal(false)} className="flex-1">Back</Button>
+                <Button type="submit" disabled={isLoading} className="flex-1">Reset</Button>
+              </div>
+            </form>
+          </Card>
+        </div>
+      )}
+
       {/* First Time Login Password Change Modal */}
       {showFirstLoginModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="w-full max-w-md animate-in zoom-in-95 duration-300">
-            <Card className="p-8 lg:p-10 !rounded-[2rem] border-white shadow-2xl relative overflow-hidden bg-white">
+            <Card className="p-8 lg:p-10 !rounded-[2rem] border-white relative overflow-hidden bg-white">
               {/* Decoration */}
-              <div className="absolute top-0 right-0 w-32 h-32 bg-[#1c5d4a]/5 rounded-full -mr-16 -mt-16" />
-              
+              <div className="absolute top-0 right-0 w-32 h-32 bg-nacos/5 rounded-full -mr-16 -mt-16" />
+
               <div className="relative z-10">
                 <div className="mb-8">
-                  <h2 className="text-2xl font-black text-slate-800 tracking-tight">Security Update</h2>
+                  <h2 className="text-xl font-bold text-slate-800">Security Update</h2>
                   <p className="text-slate-500 mt-2 font-medium leading-relaxed">
                     This is your first time logging in! For your safety, please update your default password or continue to the dashboard.
                   </p>
@@ -218,7 +327,7 @@ export default function Login() {
                     <Button
                       type="submit"
                       disabled={isChanging}
-                      className="!rounded-2xl py-4 font-bold bg-[#1c5d4a] hover:bg-[#154638] text-white shadow-lg shadow-[#1c5d4a]/20 transition-all"
+                      className="!rounded-2xl py-4 font-bold bg-nacos hover:bg-[#154638] text-white transition-all"
                     >
                       {isChanging ? (
                         <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto" />
@@ -229,9 +338,9 @@ export default function Login() {
                     <button
                       type="button"
                       onClick={() => { setShowFirstLoginModal(false); router.push('/dashboard'); }}
-                      className="py-3 text-sm font-bold text-slate-400 hover:text-slate-600 transition-colors"
+                      className="py-2 text-sm font-bold text-slate-400 hover:text-slate-600 transition-colors"
                     >
-                      Maybe Later, Dashboard
+                      Skip for now
                     </button>
                   </div>
                 </form>
