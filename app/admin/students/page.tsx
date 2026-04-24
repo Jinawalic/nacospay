@@ -91,11 +91,15 @@ export default function AdminStudentsPage() {
     });
   }, [search, statusFilter, levelFilter, students]);
 
-  const pageSize = 5;
+  const [pageSize, setPageSize] = useState(10);
   const MathMax = Math.max;
   const MathMin = Math.min;
   const totalPages = MathMax(1, Math.ceil(filteredStudents.length / pageSize));
   const safePage = MathMin(page, totalPages);
+
+  useEffect(() => {
+    setPage(1);
+  }, [pageSize]);
 
   const paginatedStudents = filteredStudents.slice(
     (safePage - 1) * pageSize,
@@ -372,9 +376,27 @@ export default function AdminStudentsPage() {
         </div>
       </Card>
 
-      {/* Pagination */}
+      {/* Pagination & Rows Selection */}
       {totalPages > 0 && (
-        <div className="mt-8 flex justify-end">
+        <div className="mt-8 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-bold text-slate-400">Rows per page:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 focus:outline-none focus:ring-1 focus:ring-[#1c5d4a] cursor-pointer hover:border-[#1c5d4a]/30 transition-all"
+            >
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+            <p className="ml-4 text-xs font-semibold text-slate-500">
+              Total {students.length} students
+            </p>
+          </div>
+
           <div className="flex items-center gap-1.5">
             {Array.from({ length: totalPages }).map((_, i) => {
               const pageNum = i + 1;

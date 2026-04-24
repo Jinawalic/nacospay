@@ -18,6 +18,7 @@ export type AdminDueItem = {
   session: string;
   description: string;
   status: 'Published' | 'Draft';
+  sizes?: string;
 };
 
 export type AdminTransaction = {

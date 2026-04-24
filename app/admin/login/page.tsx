@@ -14,14 +14,35 @@ export default function AdminLogin() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setTimeout(() => {
+    setError('');
+
+    try {
+      const response = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (response.ok) {
+        setSuccess(true);
+        setTimeout(() => {
+          router.push('/admin');
+        }, 1500);
+      } else {
+        const data = await response.json();
+        setError(data.error || 'Invalid admin credentials');
+        setIsLoading(false);
+      }
+    } catch (err) {
+      setError('An error occurred. Please try again.');
       setIsLoading(false);
-      router.push('/admin');
-    }, 1500);
+    }
   };
 
   return (
@@ -96,12 +117,27 @@ export default function AdminLogin() {
               <p className="text-slate-500 mt-2 font-medium">Log in to the administrative console.</p>
             </div>
 
-            <Card className="p-8 lg:p-10 !rounded-3xl border-gray-100 bg-white">
+            <Card className="p-8 lg:p-10 !rounded-3xl border-gray-100 bg-white relative overflow-hidden">
+              {success && (
+                <div className="absolute inset-0 z-50 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in duration-300">
+                  <div className="w-16 h-16 bg-[#1c5d4a] rounded-full flex items-center justify-center text-white mb-4 animate-bounce">
+                    <ShieldCheck size={32} />
+                  </div>
+                  <h3 className="text-xl font-bold text-[#1c5d4a]">Login Successful!</h3>
+                  <p className="text-sm font-medium text-slate-500">Redirecting to console...</p>
+                </div>
+              )}
+
               <form onSubmit={handleLogin} className="space-y-6">
+                {error && (
+                  <div className="bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-2xl text-sm font-bold animate-in shake duration-300">
+                    {error}
+                  </div>
+                )}
                 <Input
                   label="Email Address"
                   type="email"
-                  placeholder="admin@nacos.edu.ng"
+                  placeholder="admin@nacos.com"
                   icon={<Mail size={20} />}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}

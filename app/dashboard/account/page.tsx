@@ -37,8 +37,16 @@ export default function AccountPage() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [comingSoonLabel, setComingSoonLabel] = useState('Coming soon.');
+  const [student, setStudent] = useState<any>(null);
 
   useEffect(() => {
+    const stored = localStorage.getItem('nacos_student');
+    if (stored) {
+      try {
+        setStudent(JSON.parse(stored));
+      } catch (e) { /* ignore */ }
+    }
+    
     return () => {
       if (toastTimer.current) {
         window.clearTimeout(toastTimer.current);
@@ -143,8 +151,8 @@ export default function AccountPage() {
               </div>
 
               <div>
-                <h2 className="mt-1 text-xl font-bold text-slate-800">Jinawa Titus</h2>
-                <p className="mt-1 text-sm font-medium text-slate-500">NACOS Member since 2024</p>
+                <h2 className="mt-1 text-xl font-bold text-slate-800">{student?.name || 'Student'}</h2>
+                <p className="mt-1 text-sm font-medium text-slate-500">NACOS Member since {student?.joined ? new Date(student.joined).getFullYear() : '2024'}</p>
               </div>
             </div>
           </div>
@@ -155,7 +163,7 @@ export default function AccountPage() {
                 <IdCard className="text-[#1c5d4a]" size={20} />
                 <div>
                   <p className="text-[10px] font-bold text-slate-400">MATRICULATION NUMBER</p>
-                  <p className="mt-1 text-sm font-bold text-slate-800">NACOS/CS/24/019</p>
+                  <p className="mt-1 text-sm font-bold text-slate-800">{student?.matricNo || 'N/A'}</p>
                 </div>
               </div>
             </div>
@@ -165,7 +173,7 @@ export default function AccountPage() {
                 <MapPin className="text-[#1c5d4a]" size={20} />
                 <div>
                   <p className="text-[10px] font-bold text-slate-400">DEPARTMENT</p>
-                  <p className="mt-1 text-sm font-bold text-slate-800">Computer Science</p>
+                  <p className="mt-1 text-sm font-bold text-slate-800">{student?.department || 'Computer Science'}</p>
                 </div>
               </div>
             </div>
@@ -175,7 +183,7 @@ export default function AccountPage() {
                 <Phone className="text-[#1c5d4a]" size={20} />
                 <div>
                   <p className="text-[10px] font-bold text-slate-400">PHONE</p>
-                  <p className="mt-1 text-sm font-bold text-slate-800">+234 810 555 0194</p>
+                  <p className="mt-1 text-sm font-bold text-slate-800">{student?.phone || '+234 810 555 0194'}</p>
                 </div>
               </div>
             </div>
@@ -185,7 +193,7 @@ export default function AccountPage() {
                 <Mail className="text-[#1c5d4a]" size={20} />
                 <div>
                   <p className="text-[10px] font-bold text-slate-400">EMAIL</p>
-                  <p className="mt-1 text-sm font-bold text-slate-800">jinawa.titus@nacos.edu.ng</p>
+                  <p className="mt-1 text-sm font-bold text-slate-800">{student?.email || 'student@nacos.edu.ng'}</p>
                 </div>
               </div>
             </div>

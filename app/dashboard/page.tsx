@@ -13,6 +13,7 @@ import {
   ReceiptText,
   Shirt,
   ShieldCheck,
+  LogOut,
 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
@@ -23,6 +24,7 @@ import {
   initialTransactions,
   initializeTransactionsStore,
   subscribeTransactions,
+  syncTransactionsWithServer,
 } from './transactions';
 
 type DashboardAction = 'payment' | 'dues' | 'merch' | 'history' | 'all' | null;
@@ -37,6 +39,8 @@ export default function Dashboard() {
   const [pendingAction, setPendingAction] = useState<DashboardAction>(null);
   const [isComingSoonOpen, setIsComingSoonOpen] = useState(false);
   const [isMessagesOpen, setIsMessagesOpen] = useState(false);
+  const [studentName, setStudentName] = useState('Student');
+  const [availableDues, setAvailableDues] = useState<any[]>([]);
   const timers = useRef<number[]>([]);
 
   const messages = [
@@ -58,7 +62,26 @@ export default function Dashboard() {
   ];
 
   useEffect(() => {
+    const stored = localStorage.getItem('nacos_student');
+    if (stored) {
+      try {
+        const student = JSON.parse(stored);
+        if (student.name) setStudentName(student.name);
+        syncTransactionsWithServer(student.id);
+      } catch (e) { /* ignore */ }
+    }
+    
     initializeTransactionsStore();
+    
+    fetch('/api/admin/dues')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setAvailableDues(data.filter((d: any) => d.status === 'Published'));
+        }
+      })
+      .catch(console.error);
+
     return () => {
       timers.current.forEach((timer) => window.clearTimeout(timer));
       timers.current = [];
@@ -112,6 +135,13 @@ export default function Dashboard() {
     },
   ];
 
+  const isMerch = (title: string) => /t-shirt|t shirt|id card|merchandise|merch/i.test(title);
+  const visibleActions = quickActions.filter(action => {
+    if (action.action === 'dues') return availableDues.some(d => !isMerch(d.title));
+    if (action.action === 'merch') return availableDues.some(d => isMerch(d.title)); 
+    return true;
+  });
+
   return (
     <div className="mx-auto max-w-4xl space-y-8 p-6 animate-in fade-in duration-700 lg:p-12">
       <div className="flex items-center justify-between">
@@ -120,7 +150,7 @@ export default function Dashboard() {
             WELCOME BACK
           </p>
           <h1 className="text-2xl font-bold tracking-tighter text-slate-800">
-            Jinawa Titus
+            {studentName}
           </h1>
         </div>
 
@@ -132,6 +162,19 @@ export default function Dashboard() {
           >
             <Bell size={20} className="text-slate-500" />
             <span className="absolute right-3 top-3 h-2.5 w-2.5 rounded-full border-2 border-white bg-[#1c5d4a]" />
+          </button>
+          
+          <button
+            type="button"
+            onClick={async () => {
+              await fetch('/api/logout', { method: 'POST' });
+              localStorage.removeItem('nacos_student');
+              window.location.href = '/';
+            }}
+            className="flex h-12 w-12 items-center justify-center rounded-full border border-gray-100 bg-white shadow-sm transition-all hover:bg-gray-50 text-slate-500 hover:text-red-500"
+            title="Logout"
+          >
+            <LogOut size={20} />
           </button>
         </div>
       </div>
@@ -185,8 +228,8 @@ export default function Dashboard() {
 
       <div className="space-y-5">
         <h3 className="px-1 text-xl font-bold text-slate-800">Quick Actions</h3>
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          {quickActions.map((action) => {
+        <div className={`grid gap-4 ${visibleActions.length === 2 ? 'grid-cols-2' : 'grid-cols-2 md:grid-cols-4'}`}>
+          {visibleActions.map((action) => {
             const isLoading = pendingAction === action.action;
             return (
               <Card

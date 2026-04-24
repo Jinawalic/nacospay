@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
+import { cookies } from 'next/headers';
 
 export async function POST(request: Request) {
   try {
@@ -8,11 +9,28 @@ export async function POST(request: Request) {
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
+    const student = await prisma.student.findUnique({
+      where: { matricNo }
+    });
+
+    if (!student) {
+      return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+    }
+
     await prisma.student.update({
-      where: { matricNo },
+      where: { id: student.id },
       data: {
         password: hashedPassword,
       },
+    });
+
+    const cookieStore = await cookies();
+    cookieStore.set('nacos_student_session', student.id, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24, // 1 day
+      path: '/',
     });
 
     return NextResponse.json({ message: 'Password updated successfully' });

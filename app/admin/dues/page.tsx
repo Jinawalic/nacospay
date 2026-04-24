@@ -25,6 +25,7 @@ const blankDueForm = {
   session: '2024/2025',
   status: 'Published' as DueStatus,
   description: '',
+  sizes: '',
 };
 
 function buildDueId() {
@@ -32,20 +33,40 @@ function buildDueId() {
 }
 
 export default function AdminDuesPage() {
-  const [dues, setDues] = useState<AdminDueItem[]>(adminDueSeed);
+  const [dues, setDues] = useState<AdminDueItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [form, setForm] = useState(blankDueForm);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState('');
   const [isToastVisible, setIsToastVisible] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  
+
   // Table state
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  
+
   // Modals state
   const [dueToEdit, setDueToEdit] = useState<AdminDueItem | null>(null);
   const [dueToDelete, setDueToDelete] = useState<AdminDueItem | null>(null);
+
+  useEffect(() => {
+    fetchDues();
+  }, []);
+
+  const fetchDues = async () => {
+    try {
+      setIsLoading(true);
+      const res = await fetch('/api/admin/dues');
+      if (res.ok) {
+        const data = await res.json();
+        setDues(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch dues:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     let timer: number | undefined;
@@ -71,17 +92,21 @@ export default function AdminDuesPage() {
 
   const filteredDues = useMemo(() => {
     return dues.filter((due) => {
-      const matchesSearch = search.trim().length === 0 || 
+      const matchesSearch = search.trim().length === 0 ||
         [due.title, due.audience, due.session].join(' ').toLowerCase().includes(search.toLowerCase());
       return matchesSearch;
     });
   }, [search, dues]);
 
-  const pageSize = 5;
+  const [pageSize, setPageSize] = useState(10);
   const MathMax = Math.max;
   const MathMin = Math.min;
   const totalPages = MathMax(1, Math.ceil(filteredDues.length / pageSize));
   const safePage = MathMin(page, totalPages);
+
+  useEffect(() => {
+    setPage(1);
+  }, [pageSize]);
 
   const paginatedDues = filteredDues.slice(
     (safePage - 1) * pageSize,
@@ -92,43 +117,86 @@ export default function AdminDuesPage() {
     setToast(message);
   };
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSaving(true);
 
-    const nextDue: AdminDueItem = {
-      id: buildDueId(),
-      title: form.title.trim(),
-      audience: form.audience.trim(),
-      amount: Number(form.amount),
-      session: form.session.trim(),
-      description: form.description.trim(),
-      status: form.status,
-    };
+    try {
+      const res = await fetch('/api/admin/dues', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: form.title.trim(),
+          audience: form.audience.trim(),
+          amount: Number(form.amount),
+          session: form.session.trim(),
+          description: form.description.trim(),
+          status: form.status,
+        }),
+      });
 
-    window.setTimeout(() => {
-      setDues((current) => [nextDue, ...current]);
+      if (res.ok) {
+        const newDue = await res.json();
+        setDues((current) => [newDue, ...current]);
+        setForm(blankDueForm);
+        setIsCreateModalOpen(false);
+        showToast(`${newDue.title} created successfully.`);
+      } else {
+        showToast('Failed to create due');
+      }
+    } catch (error) {
+      console.error(error);
+      showToast('Error creating due');
+    } finally {
       setSaving(false);
-      setForm(blankDueForm);
-      setIsCreateModalOpen(false);
-      showToast(`${nextDue.title} created successfully.`);
-    }, 220);
-  };
-
-  const confirmEdit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (dueToEdit) {
-      setDues(prev => prev.map(d => d.id === dueToEdit.id ? dueToEdit : d));
-      setDueToEdit(null);
-      showToast('Due updated successfully!');
     }
   };
 
-  const confirmDelete = () => {
-    if (dueToDelete) {
-      setDues(prev => prev.filter(d => d.id !== dueToDelete.id));
-      setDueToDelete(null);
-      showToast('Due deleted successfully!');
+  const confirmEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!dueToEdit) return;
+
+    try {
+      const res = await fetch(`/api/admin/dues/${dueToEdit.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dueToEdit),
+      });
+
+      if (res.ok) {
+        const updatedDue = await res.json();
+        setDues(prev => prev.map(d => d.id === updatedDue.id ? updatedDue : d));
+        setDueToEdit(null);
+        showToast('Due updated successfully!');
+      } else {
+        showToast('Failed to update due');
+      }
+    } catch (error) {
+      console.error(error);
+      showToast('Error updating due');
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!dueToDelete) return;
+
+    try {
+      const res = await fetch(`/api/admin/dues/${dueToDelete.id}`, {
+        method: 'DELETE',
+      });
+
+      if (res.ok) {
+        setDues(prev => prev.filter(d => d.id !== dueToDelete.id));
+        setDueToDelete(null);
+        showToast('Due deleted successfully!');
+      } else {
+        showToast('Failed to delete due');
+      }
+    } catch (error) {
+      console.error(error);
+      showToast('Error deleting due');
     }
   };
 
@@ -164,7 +232,6 @@ export default function AdminDuesPage() {
                 </th>
                 <th className="px-5 py-4 whitespace-nowrap">Title</th>
                 <th className="px-5 py-4 whitespace-nowrap">Level</th>
-                <th className="px-5 py-4 whitespace-nowrap">Session</th>
                 <th className="px-5 py-4 whitespace-nowrap">Amount</th>
                 <th className="px-5 py-4 whitespace-nowrap">Status</th>
                 <th className="px-5 py-4 whitespace-nowrap">Action</th>
@@ -181,9 +248,6 @@ export default function AdminDuesPage() {
                   </td>
                   <td className="px-5 py-4 text-[13px] font-semibold text-slate-800 whitespace-nowrap">
                     {due.audience}
-                  </td>
-                  <td className="px-5 py-4 text-[13px] font-medium text-slate-600 whitespace-nowrap">
-                    {due.session}
                   </td>
                   <td className="px-5 py-4 text-[13px] font-semibold text-slate-800 whitespace-nowrap">
                     {formatCurrency(due.amount)}
@@ -220,9 +284,24 @@ export default function AdminDuesPage() {
         </div>
       </Card>
 
-      {/* Pagination */}
+      {/* Pagination & Rows Selection */}
       {totalPages > 0 && (
-        <div className="mt-8 flex justify-end">
+        <div className="mt-8 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-bold text-slate-400">Rows per page:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 focus:outline-none focus:ring-1 focus:ring-[#1c5d4a] cursor-pointer hover:border-[#1c5d4a]/30 transition-all"
+            >
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+          </div>
+
           <div className="flex items-center gap-1.5">
             {Array.from({ length: totalPages }).map((_, i) => {
               const pageNum = i + 1;
@@ -294,7 +373,6 @@ export default function AdminDuesPage() {
                     <option value="200L">200L</option>
                     <option value="300L">300L</option>
                     <option value="400L">400L</option>
-                    <option value="500L">500L</option>
                   </select>
                 </label>
               </div>
@@ -313,17 +391,6 @@ export default function AdminDuesPage() {
                   />
                 </label>
 
-                <label className="space-y-2 text-sm font-medium text-slate-600">
-                  <span>Session</span>
-                  <input
-                    value={form.session}
-                    onChange={(event) => setForm((current) => ({ ...current, session: event.target.value }))}
-                    className="w-full rounded-2xl border border-gray-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-[#1c5d4a]"
-                    placeholder="2024/2025"
-                    required
-                  />
-                </label>
-              </div>              <div className="grid gap-4 sm:grid-cols-2">
                 <label className="space-y-2 text-sm font-medium text-slate-600 flex flex-col justify-end">
                   <span className="mb-2">Status</span>
                   <select
@@ -345,9 +412,20 @@ export default function AdminDuesPage() {
                   onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
                   className="w-full rounded-2xl border border-gray-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-[#1c5d4a]"
                   placeholder="Explain what the due covers and any important notes."
-                  required
                 />
               </label>
+
+              {/t-shirt|tshirt|shirt|merch|merchandise/i.test(form.title) && (
+                <label className="space-y-2 text-sm font-medium text-slate-600 block">
+                  <span>Available Sizes (Comma separated)</span>
+                  <input
+                    value={form.sizes}
+                    onChange={(event) => setForm((current) => ({ ...current, sizes: event.target.value }))}
+                    className="w-full rounded-2xl border border-gray-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-[#1c5d4a]"
+                    placeholder="S, M, L, XL, XXL"
+                  />
+                </label>
+              )}
 
               <div className="pt-2 flex justify-end gap-3 border-t border-gray-100">
                 <Button type="button" onClick={() => setIsCreateModalOpen(false)} variant="ghost" className="text-slate-600 hover:text-slate-900">
@@ -386,7 +464,7 @@ export default function AdminDuesPage() {
                 <X size={20} />
               </button>
             </div>
-            
+
             <form onSubmit={confirmEdit} className="space-y-5">
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="space-y-2 text-sm font-medium text-slate-600">
@@ -430,18 +508,6 @@ export default function AdminDuesPage() {
                   />
                 </label>
 
-                <label className="space-y-2 text-sm font-medium text-slate-600">
-                  <span>Session</span>
-                  <input
-                    value={dueToEdit.session}
-                    onChange={(event) => setDueToEdit((current) => current ? { ...current, session: event.target.value } : null)}
-                    className="w-full rounded-2xl border border-gray-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-[#1c5d4a]"
-                    required
-                  />
-                </label>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
                 <label className="space-y-2 text-sm font-medium text-slate-600 flex flex-col justify-end">
                   <span className="mb-2">Status</span>
                   <select
@@ -462,9 +528,20 @@ export default function AdminDuesPage() {
                   value={dueToEdit.description}
                   onChange={(event) => setDueToEdit((current) => current ? { ...current, description: event.target.value } : null)}
                   className="w-full rounded-2xl border border-gray-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-[#1c5d4a]"
-                  required
                 />
               </label>
+
+              {/t-shirt|tshirt|shirt|merch|merchandise/i.test(dueToEdit.title) && (
+                <label className="space-y-2 text-sm font-medium text-slate-600 block">
+                  <span>Available Sizes (Comma separated)</span>
+                  <input
+                    value={dueToEdit.sizes || ''}
+                    onChange={(event) => setDueToEdit((current) => current ? { ...current, sizes: event.target.value } : null)}
+                    className="w-full rounded-2xl border border-gray-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-[#1c5d4a]"
+                    placeholder="S, M, L, XL, XXL"
+                  />
+                </label>
+              )}
 
               <div className="pt-2 flex justify-end gap-3 border-t border-gray-100">
                 <Button type="button" onClick={() => setDueToEdit(null)} variant="ghost" className="text-slate-600 hover:text-slate-900">

@@ -41,8 +41,16 @@ export function AdminOverviewDashboard({
 
   const publishedDues = dues.filter((due) => due.status === 'Published').length;
 
-  const revenue = transactions.reduce((sum, transaction) => {
-    return transaction.status === 'Paid' ? sum + transaction.amount : sum;
+  const duesRevenue = transactions.reduce((sum, t) => {
+    return t.status === 'Paid' && t.type === 'Dues' ? sum + t.amount : sum;
+  }, 0);
+
+  const merchRevenue = transactions.reduce((sum, t) => {
+    return t.status === 'Paid' && t.type === 'Merchandise' ? sum + t.amount : sum;
+  }, 0);
+
+  const totalRevenue = transactions.reduce((sum, t) => {
+    return t.status === 'Paid' ? sum + t.amount : sum;
   }, 0);
 
   const paidCount = transactions.filter((transaction) => transaction.status === 'Paid').length;
@@ -132,26 +140,26 @@ export function AdminOverviewDashboard({
         <AdminMetricCard
           icon={ShieldCheck}
           title="NACOS Dues"
-          value={formatCurrency(revenue)}
+          value={formatCurrency(duesRevenue)}
         />
         <AdminMetricCard
           icon={Wallet}
           title="T-shirt & ID"
-          value={formatCurrency(revenue)}
+          value={formatCurrency(merchRevenue)}
         />
         <AdminMetricCard
           icon={TrendingUp}
           title="Total revenue"
-          value={formatCurrency(revenue)}
+          value={formatCurrency(totalRevenue)}
         />
       </div>
 
       <div className="flex flex-col lg:flex-row gap-6">
         <div className="w-full lg:w-[60%]">
-          <AdminPaymentAnalyticsCard />
+          <AdminPaymentAnalyticsCard transactions={transactions} />
         </div>
         <div className="w-full lg:w-[40%]">
-          <AdminLevelsHighlightCard />
+          <AdminLevelsHighlightCard students={students} />
         </div>
       </div>
 

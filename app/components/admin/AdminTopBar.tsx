@@ -1,5 +1,5 @@
 import Image from 'next/image';
-import { Bell, User } from 'lucide-react';
+import { Bell, User, LogOut } from 'lucide-react';
 
 export function AdminTopBar({
   title,
@@ -43,6 +43,17 @@ export function AdminTopBar({
               <p className="truncate text-sm font-bold text-slate-800">{profileName}</p>
               <p className="truncate text-xs text-slate-500">{profileHandle}</p>
             </div>
+            
+            <button
+              onClick={async () => {
+                await fetch('/api/logout', { method: 'POST' });
+                window.location.href = '/admin/login';
+              }}
+              className="ml-2 p-2 text-slate-400 hover:text-red-500 transition-colors"
+              title="Logout"
+            >
+              <LogOut size={18} />
+            </button>
           </div>
         </div>
       </div>

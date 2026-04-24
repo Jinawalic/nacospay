@@ -54,7 +54,6 @@ export function TransactionItem({ transaction }: { transaction: Transaction }) {
         </div>
 
         <div className="flex items-center justify-between gap-4">
-          <p className="text-[11px] font-semibold text-slate-400">{transaction.txnId}</p>
           <p className="text-sm font-black tracking-tight text-[#a33b3b]">
             - {formatCurrency(transaction.amount)}
           </p>
@@ -69,7 +68,7 @@ export function TransactionTable({
 }: {
   transactions: Transaction[];
 }) {
-  const pageSize = 2;
+  const [pageSize, setPageSize] = useState(10);
   const [page, setPage] = useState(1);
   const [downloadLoadingId, setDownloadLoadingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Transaction | null>(null);
@@ -82,10 +81,14 @@ export function TransactionTable({
   const paginatedTransactions = useMemo(() => {
     const start = (safePage - 1) * pageSize;
     return transactions.slice(start, start + pageSize);
-  }, [safePage, transactions]);
+  }, [safePage, transactions, pageSize]);
 
   const startIndex = transactions.length === 0 ? 0 : (safePage - 1) * pageSize + 1;
   const endIndex = Math.min(safePage * pageSize, transactions.length);
+
+  useEffect(() => {
+    setPage(1);
+  }, [pageSize]);
 
   useEffect(() => {
     return () => {
@@ -215,7 +218,7 @@ export function TransactionTable({
                             {transaction.typeLabel}
                           </h4>
                           <p className="mt-1 truncate text-xs font-medium text-slate-500">
-                            {transaction.txnId} | {transaction.details}
+                            {transaction.details}
                           </p>
                         </div>
                       </div>
@@ -271,11 +274,27 @@ export function TransactionTable({
           </table>
         </div>
 
-        {transactions.length > 0 && totalPages > 1 && (
+        {transactions.length > 0 && (
           <div className="flex flex-col gap-3 border-t border-gray-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm font-medium text-slate-500">
-              Showing {startIndex}-{endIndex} of {transactions.length}
-            </p>
+            <div className="flex items-center gap-6">
+              <p className="text-sm font-medium text-slate-500">
+                Showing {startIndex}-{endIndex} of {transactions.length}
+              </p>
+              
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-400">Rows per page:</span>
+                <select 
+                  value={pageSize}
+                  onChange={(e) => setPageSize(Number(e.target.value))}
+                  className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs font-bold text-slate-600 focus:outline-none focus:ring-1 focus:ring-[#1c5d4a] cursor-pointer hover:border-[#1c5d4a]/30"
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+              </div>
+            </div>
 
             <div className="flex items-center gap-2">
               <button

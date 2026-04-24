@@ -45,6 +45,8 @@ export default function Login() {
         if (data.isFirstLogin) {
           setShowFirstLoginModal(true);
         } else {
+          // Store student data for use in dashboard
+          localStorage.setItem('nacos_student', JSON.stringify(data.student));
           showToast('Login successful! Welcome back.');
           setTimeout(() => router.push('/dashboard'), 1000);
         }
@@ -74,6 +76,8 @@ export default function Login() {
       });
 
       if (response.ok) {
+        // After password update, we should have the student data or at least the matricNo
+        localStorage.setItem('nacos_student_matric', matricNumber);
         showToast('Password updated successfully! Redirecting...');
         setTimeout(() => {
           setShowFirstLoginModal(false);

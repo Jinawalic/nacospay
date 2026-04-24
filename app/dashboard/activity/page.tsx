@@ -41,13 +41,15 @@ import {
   merchandiseItem,
   setTransactionsSnapshot,
   studentName,
+  studentMatric,
   subscribeTransactions,
+  syncTransactionsWithServer,
   Transaction,
   TransactionKind,
 } from '../transactions';
 import { Input } from '@/app/components/Input';
 
-type Step = 1 | 2 | 3 | 4;
+type Step = 1 | 2 | 3;
 type FilterKey = 'all' | 'dues' | 'merchandise';
 type PaystackSuccess = { reference: string };
 
@@ -84,36 +86,36 @@ function parseType(value: string | null): TransactionKind | null {
 }
 
 function buildTransaction(
-  kind: TransactionKind,
   selectedLevels: string[],
-  reference?: string,
+  reference: string | undefined,
+  paymentOptions: any[],
+  selectedSizes: Record<string, string> = {},
+  student: string = studentName,
+  matricNo?: string
 ): Transaction {
   const txnId = reference ?? makeTxnId();
   const now = new Date().toISOString();
 
-  if (kind === 'dues') {
-    return {
-      id: txnId.toLowerCase(),
-      txnId,
-      kind,
-      typeLabel: 'NACOS Dues',
-      student: studentName,
-      details: selectedLevels.join(', '),
-      amount: selectedLevels.length * duesLevels[0].amount,
-      dateISO: now,
-      status: 'Paid' as const,
-      paymentMethod,
-    };
-  }
+  const selectedOpts = selectedLevels
+    .map(id => paymentOptions.find(o => o.id === id))
+    .filter((o): o is NonNullable<typeof o> => Boolean(o));
+  const hasDues = selectedOpts.some(o => !o.isMerch);
+  const hasMerch = selectedOpts.some(o => o.isMerch);
+
+  const kind: TransactionKind = hasDues && hasMerch ? 'dues' : hasDues ? 'dues' : 'merchandise';
+  const typeLabel = hasDues && hasMerch ? 'Dues & Merchandise' : hasDues ? 'NACOS Dues' : 'T-Shirt / ID Card';
+  const details = selectedOpts.map(o => o.isMerch && selectedSizes[o.id] ? `${o.title} (Size: ${selectedSizes[o.id]})` : o.title).join(', ');
+  const amount = selectedOpts.reduce((sum, o) => sum + o.amount, 0);
 
   return {
     id: txnId.toLowerCase(),
     txnId,
     kind,
-    typeLabel: 'T-Shirt / ID Card',
-    student: studentName,
-    details: '1 item bundle',
-    amount: merchandiseItem.amount,
+    typeLabel,
+    student,
+    matricNo,
+    details,
+    amount,
     dateISO: now,
     status: 'Paid' as const,
     paymentMethod,
@@ -123,8 +125,7 @@ function buildTransaction(
 function ActivityPageBody() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialType = parseType(searchParams.get('type'));
-  const initialOpen = searchParams.get('open') === 'payment' || Boolean(initialType);
+  const initialOpen = searchParams.get('open') === 'payment';
 
   const transactions = useSyncExternalStore(
     subscribeTransactions,
@@ -133,19 +134,47 @@ function ActivityPageBody() {
   );
   const [filter, setFilter] = useState<FilterKey>('all');
   const [isModalOpen, setIsModalOpen] = useState(initialOpen);
-  const [step, setStep] = useState<Step>(initialType ? 2 : 1);
-  const [selectedType, setSelectedType] = useState<TransactionKind | null>(initialType);
+  const [step, setStep] = useState<Step>(1);
+  const [paymentMode, setPaymentMode] = useState<string>(searchParams.get('type') || 'all');
   const [selectedLevels, setSelectedLevels] = useState<string[]>([]);
-  const [typeLoading, setTypeLoading] = useState<TransactionKind | null>(null);
+  const [selectedSizes, setSelectedSizes] = useState<Record<string, string>>({});
+  const [sizeModalItem, setSizeModalItem] = useState<any | null>(null);
   const [proceedLoading, setProceedLoading] = useState(false);
   const [payLoading, setPayLoading] = useState(false);
   const [paystackReady, setPaystackReady] = useState(false);
   const [downloadLoading, setDownloadLoading] = useState(false);
   const [receiptTransaction, setReceiptTransaction] = useState<Transaction | null>(null);
+  const [availableDues, setAvailableDues] = useState<any[]>([]);
+  const [fetchingDues, setFetchingDues] = useState(true);
+  const [currentStudent, setCurrentStudent] = useState<any>(null);
   const timers = useRef<number[]>([]);
 
   useEffect(() => {
+    const stored = localStorage.getItem('nacos_student');
+    if (stored) {
+      try {
+        const studentInfo = JSON.parse(stored);
+        setCurrentStudent(studentInfo);
+        syncTransactionsWithServer(studentInfo.id);
+      } catch (e) {
+        console.error('Failed to parse student data');
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     initializeTransactionsStore();
+
+    fetch('/api/admin/dues')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setAvailableDues(data.filter((d: any) => d.status === 'Published'));
+        }
+      })
+      .catch(console.error)
+      .finally(() => setFetchingDues(false));
+
     return () => {
       timers.current.forEach((timer) => window.clearTimeout(timer));
       timers.current = [];
@@ -166,29 +195,73 @@ function ActivityPageBody() {
     });
   }, [filter, transactions]);
 
-  const selectedDuesTotal = selectedLevels.length * duesLevels[0].amount;
-  const currentAmount =
-    selectedType === 'dues' ? selectedDuesTotal : merchandiseItem.amount;
+  const isMerch = (title: string) => /t-shirt|t shirt|tshirt|shirt|id|merchandise|merch/i.test(title);
+
+  const paymentOptions = useMemo(() => {
+    const opts: Array<{ id: string, title: string, amount: number, isMerch: boolean, category: string, sizes?: string }> = [];
+
+    availableDues.forEach(due => {
+      if (isMerch(due.title)) {
+        opts.push({
+          id: due.id,
+          title: due.title,
+          amount: due.amount,
+          isMerch: true,
+          category: 'Merchandise',
+          sizes: due.sizes // From database
+        });
+      } else {
+        const levels = due.audience === 'All Levels' ? ['100L', '200L', '300L', '400L'] : [due.audience];
+        levels.forEach(level => {
+          const finalAmount = level === '100L' ? due.amount + 500 : due.amount;
+          opts.push({
+            id: `${due.id}-${level}`,
+            title: due.title.includes(level) ? due.title : `${due.title} - ${level}`,
+            amount: finalAmount,
+            isMerch: false,
+            category: 'NACOS Dues'
+          });
+        });
+      }
+    });
+    return opts;
+  }, [availableDues]);
+
+  const currentAmount = useMemo(() => {
+    return selectedLevels.reduce((sum, id) => {
+      const option = paymentOptions.find(o => o.id === id);
+      return sum + (option ? option.amount : 0);
+    }, 0);
+  }, [selectedLevels, paymentOptions]);
+
+  useEffect(() => {
+    if (isModalOpen && paymentMode === 'merch' && step === 1 && !fetchingDues && paymentOptions.length > 0) {
+      const merch = paymentOptions.filter(o => o.isMerch);
+      if (merch.length >= 1 && !sizeModalItem && selectedLevels.length === 0) {
+        setSizeModalItem(merch[0]);
+      }
+    }
+  }, [isModalOpen, paymentMode, step, fetchingDues, paymentOptions, sizeModalItem, selectedLevels]);
 
   const clearTimers = () => {
     timers.current.forEach((timer) => window.clearTimeout(timer));
     timers.current = [];
   };
 
-  const openPaymentFlow = (kind?: TransactionKind) => {
+  const openPaymentFlow = (mode?: string) => {
     clearTimers();
     setIsModalOpen(true);
     setReceiptTransaction(null);
     setSelectedLevels([]);
-    setSelectedType(kind ?? null);
-    setStep(kind ? 2 : 1);
-    setTypeLoading(null);
+    setSelectedSizes({});
+    setStep(1);
+    setPaymentMode(mode || 'all');
     setProceedLoading(false);
     setPayLoading(false);
     setDownloadLoading(false);
 
-    if (kind) {
-      router.push(`/dashboard/activity?open=payment&type=${kind}`);
+    if (mode) {
+      router.push(`/dashboard/activity?open=payment&type=${mode}`);
     } else {
       router.push('/dashboard/activity?open=payment');
     }
@@ -198,9 +271,8 @@ function ActivityPageBody() {
     clearTimers();
     setIsModalOpen(false);
     setStep(1);
-    setSelectedType(null);
     setSelectedLevels([]);
-    setTypeLoading(null);
+    setSelectedSizes({});
     setProceedLoading(false);
     setPayLoading(false);
     setDownloadLoading(false);
@@ -221,8 +293,6 @@ function ActivityPageBody() {
 
     if (step === 2) {
       setStep(1);
-      setSelectedType(null);
-      setSelectedLevels([]);
       return;
     }
 
@@ -230,70 +300,139 @@ function ActivityPageBody() {
       setStep(2);
       return;
     }
-
-    setStep(3);
   };
 
-  const handleTypeSelect = (kind: TransactionKind) => {
-    clearTimers();
-    setTypeLoading(kind);
-    setSelectedType(kind);
-    setSelectedLevels([]);
 
-    const timer = window.setTimeout(() => {
-      setStep(2);
-      setTypeLoading(null);
-    }, 200);
 
-    timers.current.push(timer);
+  const toggleLevel = (id: string) => {
+    const isLevelMerch = paymentOptions.find(o => o.id === id)?.isMerch;
+
+    if (isLevelMerch && !selectedLevels.includes(id)) {
+      setSizeModalItem(paymentOptions.find(o => o.id === id) || null);
+      return;
+    }
+
+    setSelectedLevels((current) => {
+      if (current.includes(id)) {
+        if (isLevelMerch) {
+          setSelectedSizes(prev => {
+            const next = { ...prev };
+            delete next[id];
+            return next;
+          });
+        }
+        return current.filter((item) => item !== id);
+      }
+      if (!isLevelMerch) {
+        return [...current, id];
+      }
+      return current;
+    });
   };
 
-  const toggleLevel = (level: string) => {
-    setSelectedLevels((current) =>
-      current.includes(level)
-        ? current.filter((item) => item !== level)
-        : [...current, level],
-    );
+  const handleSizeSelect = (size: string) => {
+    if (!sizeModalItem) return;
+
+    const withoutOtherMerch = selectedLevels.filter(id => !paymentOptions.find(o => o.id === id)?.isMerch);
+    setSelectedLevels([...withoutOtherMerch, sizeModalItem.id]);
+    setSelectedSizes({ [sizeModalItem.id]: size });
+    setSizeModalItem(null);
+
+    if (paymentMode === 'merch') {
+      const timer = window.setTimeout(() => {
+        setStep(2);
+      }, 300);
+      timers.current.push(timer);
+    }
   };
+
+  const visibleOptions = paymentOptions.filter(opt => paymentMode === 'all' || (paymentMode === 'dues' && !opt.isMerch) || (paymentMode === 'merch' && opt.isMerch));
 
   const handleProceed = () => {
     clearTimers();
     setProceedLoading(true);
     const timer = window.setTimeout(() => {
       setProceedLoading(false);
-      setStep(3);
+      setStep(2);
     }, 200);
 
     timers.current.push(timer);
   };
 
-  const handleSuccessfulPayment = (reference: string) => {
-    if (!selectedType) {
-      return;
+  const handleSuccessfulPayment = async (reference: string) => {
+    const selectedOpts = selectedLevels
+      .map(id => paymentOptions.find(o => o.id === id))
+      .filter((o): o is NonNullable<typeof o> => Boolean(o));
+
+    const details = selectedOpts.map(o => o.isMerch && selectedSizes[o.id] ? `${o.title} (Size: ${selectedSizes[o.id]})` : o.title).join(', ');
+    const typeLabel = selectedOpts.some(o => !o.isMerch) && selectedOpts.some(o => o.isMerch) ? 'Dues & Merchandise' : selectedOpts.some(o => !o.isMerch) ? 'NACOS Dues' : 'T-Shirt / ID Card';
+
+    try {
+      const resp = await fetch('/api/student/payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reference,
+          studentId: currentStudent?.id,
+          amount: currentAmount,
+          type: typeLabel,
+          details,
+          paymentMethod,
+        })
+      });
+
+      if (!resp.ok) {
+        throw new Error('Failed to record transaction');
+      }
+
+      const transaction = buildTransaction(
+        selectedLevels,
+        reference,
+        paymentOptions,
+        selectedSizes,
+        currentStudent?.name || studentName,
+        currentStudent?.matricNo || studentMatric
+      );
+
+      const nextTransactions = [
+        transaction,
+        ...transactions.filter((item) => item.txnId !== transaction.txnId),
+      ];
+
+      setTransactionsSnapshot(nextTransactions);
+      setReceiptTransaction(transaction);
+      setPayLoading(false);
+      setStep(3);
+    } catch (err) {
+      console.error(err);
+      setPayLoading(false);
+      alert('Payment was successful but we couldn\'t record it. Reference: ' + reference);
     }
-
-    const transaction = buildTransaction(selectedType, selectedLevels, reference);
-    const nextTransactions = [
-      transaction,
-      ...transactions.filter((item) => item.txnId !== transaction.txnId),
-    ];
-
-    setTransactionsSnapshot(nextTransactions);
-    setReceiptTransaction(transaction);
-    setPayLoading(false);
-    setStep(4);
   };
 
+  useEffect(() => {
+    const checkPaystack = () => {
+      if (window.PaystackPop) {
+        setPaystackReady(true);
+      }
+    };
+    checkPaystack();
+    const interval = setInterval(checkPaystack, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   const handlePayNow = () => {
-    if (!selectedType) {
+    if (selectedLevels.length === 0) {
+      alert('Please select at least one item to pay for.');
       return;
     }
 
     clearTimers();
     setPayLoading(true);
 
-    if (!paystackReady || !window.PaystackPop) {
+    if (!window.PaystackPop) {
       setPayLoading(false);
+      alert('Payment gateway is still loading. Please wait a moment and try again.');
       return;
     }
 
@@ -301,8 +440,8 @@ function ActivityPageBody() {
       const paystack = new window.PaystackPop();
       paystack.newTransaction({
         key: paystackPublicKey,
-        email: 'jinawa.titus@nacos.edu.ng',
-        amount: currentAmount * 100,
+        email: currentStudent?.email || 'jinawa.titus@nacos.edu.ng',
+        amount: Math.round(currentAmount * 100),
         currency: 'NGN',
         onSuccess: (transaction) => {
           handleSuccessfulPayment(transaction.reference);
@@ -310,12 +449,16 @@ function ActivityPageBody() {
         onCancel: () => {
           setPayLoading(false);
         },
-        onError: () => {
+        onError: (error) => {
+          console.error('Paystack error:', error);
           setPayLoading(false);
+          alert('An error occurred with the payment gateway: ' + (error?.message || 'Unknown error'));
         },
       });
-    } catch {
+    } catch (e) {
+      console.error('Paystack initialization error:', e);
       setPayLoading(false);
+      alert('Could not initialize payment. Please try again.');
     }
   };
 
@@ -384,8 +527,6 @@ function ActivityPageBody() {
         setDownloadLoading(false);
         setIsModalOpen(false);
         setStep(1);
-        setSelectedType(null);
-        setSelectedLevels([]);
         setReceiptTransaction(null);
         router.replace('/dashboard');
       }, 150);
@@ -394,25 +535,20 @@ function ActivityPageBody() {
     }
   };
 
-  const confirmRows =
-    selectedType === 'dues'
-      ? [
-          {
-            label: 'Selected levels',
-            value: selectedLevels.length > 0 ? selectedLevels.join(', ') : 'None selected',
-          },
-          {
-            label: 'Rate x count',
-            value: `${formatCurrency(duesLevels[0].amount)} x ${selectedLevels.length}`,
-          },
-        ]
-      : [
-          { label: 'Item', value: merchandiseItem.name },
-          { label: 'Qty', value: '1' },
-          { label: 'Method', value: paymentMethod },
-        ];
+  const confirmRows = [
+    {
+      label: 'Selected Items',
+      value: selectedLevels.length > 0 ? selectedLevels.map(id => {
+        const opt = paymentOptions.find(o => o.id === id);
+        return opt?.isMerch && selectedSizes[id] ? `${opt.title} (Size: ${selectedSizes[id]})` : opt?.title;
+      }).join(', ') : 'None selected',
+    },
+    { label: 'Method', value: paymentMethod },
+  ];
 
-  const paymentTitle = selectedType === 'dues' ? 'NACOS Dues' : 'T-Shirt / ID Card';
+  const paymentTitle = selectedLevels.some(id => paymentOptions.find(o => o.id === id)?.isMerch)
+    ? (selectedLevels.some(id => !paymentOptions.find(o => o.id === id)?.isMerch) ? 'Dues & Merchandise' : 'T-Shirt / ID Card')
+    : 'NACOS Dues';
 
   return (
     <main className="min-h-screen bg-[#f8fafc] lg:px-6 lg:py-6">
@@ -533,7 +669,7 @@ function ActivityPageBody() {
                   <ChevronLeft size={20} />
                 </button>
 
-                <StepIndicator step={step === 4 ? 3 : step} />
+                <StepIndicator step={step} />
 
                 <button
                   type="button"
@@ -552,59 +688,31 @@ function ActivityPageBody() {
                         STEP 1 OF 3
                       </p>
                       <h2 className="mt-2 text-2xl font-bold text-slate-800">
-                        Choose payment type
+                        Select items to pay
                       </h2>
                       <p className="mt-2 text-sm font-medium leading-relaxed text-slate-500">
-                        Pick the option you want to pay for. The next step opens automatically.
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                      <PaymentTypeCard
-                        title="NACOS Dues"
-                        description="Select one or more unpaid levels and pay in one go."
-                        icon={ShieldCheck}
-                        selected={selectedType === 'dues'}
-                        loading={typeLoading === 'dues'}
-                        disabled={typeLoading !== null}
-                        onClick={() => handleTypeSelect('dues')}
-                      />
-                      <PaymentTypeCard
-                        title="T-Shirt / ID Card"
-                        description="Pay the official T-shirt and ID card bundle."
-                        icon={Shirt}
-                        selected={selectedType === 'merchandise'}
-                        loading={typeLoading === 'merchandise'}
-                        disabled={typeLoading !== null}
-                        onClick={() => handleTypeSelect('merchandise')}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {step === 2 && selectedType === 'dues' && (
-                  <div className="space-y-5">
-                    <div>
-                      <p className="text-[10px] font-black tracking-[0.24em] text-[#1c5d4a]">
-                        STEP 2 OF 3
-                      </p>
-                      <h2 className="mt-2 text-xl font-bold text-slate-800">
-                        Select unpaid levels
-                      </h2>
-                      <p className="mt-2 text-sm font-medium leading-relaxed text-slate-500">
-                        Choose one or more levels. Each level is billed at {formatCurrency(duesLevels[0].amount)}.
+                        Choose the Dues and Merchandise you want to pay for.
                       </p>
                     </div>
 
                     <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                      {duesLevels.map((level) => {
-                        const checked = selectedLevels.includes(level.label);
+                      {fetchingDues ? (
+                        <div className="col-span-full py-6 text-center text-slate-500 flex flex-col items-center">
+                          <Loader2 size={24} className="animate-spin mb-2 text-[#1c5d4a]" />
+                          Loading available items...
+                        </div>
+                      ) : visibleOptions.length === 0 ? (
+                        <div className="col-span-full py-6 text-center text-slate-500 border border-dashed border-gray-200 rounded-xl">
+                          No items are currently available for payment.
+                        </div>
+                      ) : visibleOptions.map((option) => {
+                        const checked = selectedLevels.includes(option.id);
 
                         return (
                           <button
-                            key={level.label}
+                            key={option.id}
                             type="button"
-                            onClick={() => toggleLevel(level.label)}
+                            onClick={() => toggleLevel(option.id)}
                             className={[
                               'flex w-full items-center justify-between gap-4 rounded-xl border p-4 text-left transition-all',
                               checked
@@ -614,21 +722,22 @@ function ActivityPageBody() {
                           >
                             <div className="min-w-0">
                               <div className="flex items-center gap-2">
-                                <p className="text-base font-extrabold tracking-tight text-slate-800">
-                                  {level.label}
+                                <p className="truncate text-base font-extrabold tracking-tight text-slate-800">
+                                  {option.title}
+                                  {checked && option.isMerch && selectedSizes[option.id] ? <span className="ml-1 text-slate-500 font-medium">(Size: {selectedSizes[option.id]})</span> : ''}
                                 </p>
-                                <span className="rounded-full bg-[#1c5d4a]/10 px-2 py-0.5 text-[10px] font-bold text-[#1c5d4a]">
-                                  Not paid
-                                </span>
                               </div>
-                              <p className="mt-1 text-sm font-medium text-slate-500">
-                                {formatCurrency(duesLevels[0].amount)}
+                              <p className="mt-1 text-sm font-medium text-slate-500 flex justify-between">
+                                <span>{formatCurrency(option.amount)}</span>
+                                <span className={['rounded-full px-2 py-0.5 text-[10px] font-bold', checked ? 'bg-[#1c5d4a]/20 text-[#1c5d4a]' : 'bg-slate-100 text-slate-500'].join(' ')}>
+                                  {option.category}
+                                </span>
                               </p>
                             </div>
 
                             <div
                               className={[
-                                'flex h-6 w-6 items-center justify-center rounded-full border transition-all',
+                                'flex shrink-0 h-6 w-6 items-center justify-center rounded-full border transition-all',
                                 checked
                                   ? 'border-[#1c5d4a] bg-[#1c5d4a] text-white'
                                   : 'border-gray-300 bg-transparent text-transparent',
@@ -644,15 +753,14 @@ function ActivityPageBody() {
                     <AmountSummary
                       rows={[
                         {
-                          label: 'Selected levels',
-                          value: selectedLevels.length > 0 ? selectedLevels.join(', ') : 'None selected',
-                        },
-                        {
-                          label: 'Rate x count',
-                          value: `${formatCurrency(duesLevels[0].amount)} x ${selectedLevels.length}`,
+                          label: 'Selected items',
+                          value: selectedLevels.length > 0 ? selectedLevels.map(id => {
+                            const opt = paymentOptions.find(o => o.id === id);
+                            return opt?.isMerch && selectedSizes[id] ? `${opt.title} (Size: ${selectedSizes[id]})` : opt?.title;
+                          }).join(', ') : 'None selected',
                         },
                       ]}
-                      total={formatCurrency(selectedDuesTotal)}
+                      total={formatCurrency(currentAmount)}
                     />
 
                     <button
@@ -667,82 +775,17 @@ function ActivityPageBody() {
                           Loading...
                         </span>
                       ) : (
-                        'Proceed'
+                        'Proceed to Review'
                       )}
                     </button>
                   </div>
                 )}
 
-                {step === 2 && selectedType === 'merchandise' && (
+                {step === 2 && (
                   <div className="space-y-5">
                     <div>
                       <p className="text-[10px] font-black tracking-[0.24em] text-[#1c5d4a]">
                         STEP 2 OF 3
-                      </p>
-                      <h2 className="mt-2 text-xl font-bold text-slate-800">
-                        Review merchandise item
-                      </h2>
-                      <p className="mt-2 text-sm font-medium leading-relaxed text-slate-500">
-                        Confirm the T-shirt and ID card bundle before moving to payment.
-                      </p>
-                    </div>
-
-                    <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-[0_12px_35px_rgba(11,79,54,0.05)]">
-                      <div className="flex items-start gap-4">
-                        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#1c5d4a]/10 text-[#1c5d4a]">
-                          <Shirt size={24} />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <h3 className="text-lg font-bold text-slate-800">
-                            {merchandiseItem.name}
-                          </h3>
-                          <p className="mt-1 text-sm font-medium leading-relaxed text-slate-500">
-                            {merchandiseItem.description}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="mt-4 rounded-xl bg-[#f8fafc] p-4">
-                        <div className="flex items-center justify-between gap-4 text-sm">
-                          <span className="font-medium text-slate-500">Price</span>
-                          <span className="font-black text-[#1c5d4a]">
-                            {formatCurrency(merchandiseItem.amount)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <AmountSummary
-                      rows={[
-                        { label: 'Item', value: merchandiseItem.name },
-                        { label: 'Qty', value: '1' },
-                        { label: 'Bundle', value: formatCurrency(merchandiseItem.amount) },
-                      ]}
-                      total={formatCurrency(merchandiseItem.amount)}
-                    />
-
-                    <button
-                      type="button"
-                      onClick={handleProceed}
-                      disabled={proceedLoading}
-                      className="inline-flex w-full items-center justify-center rounded-2xl bg-[#1c5d4a] px-5 py-4 text-sm font-bold text-white transition-all disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {proceedLoading ? (
-                        <span className="inline-flex items-center gap-3">
-                          <Loader2 size={18} className="animate-spin" />
-                          Loading...
-                        </span>
-                      ) : (
-                        'Proceed'
-                      )}
-                    </button>
-                  </div>
-                )}
-
-                {step === 3 && selectedType && (
-                  <div className="space-y-5">
-                    <div>
-                      <p className="text-[10px] font-black tracking-[0.24em] text-[#1c5d4a]">
-                        STEP 3 OF 3
                       </p>
                       <h2 className="mt-2 text-xl font-bold text-slate-800">
                         Confirm and pay
@@ -793,7 +836,7 @@ function ActivityPageBody() {
                   </div>
                 )}
 
-                {step === 4 && receiptTransaction && (
+                {step === 3 && receiptTransaction && (
                   <div className="space-y-5">
                     <div className="flex flex-col items-center text-center">
                       <CheckmarkBadge />
@@ -826,6 +869,32 @@ function ActivityPageBody() {
                 )}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {sizeModalItem && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/45 backdrop-blur-[2px] p-4">
+          <div className="relative w-full max-w-xs md:max-w-sm rounded-[1.5rem] bg-white p-6 shadow-2xl animate-[sheetUp_220ms_ease-out]">
+            <h3 className="text-xl font-bold text-slate-800 mb-2">Select Size</h3>
+            <p className="text-sm text-slate-500 mb-5">Please pick a size to continue.</p>
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              {(sizeModalItem.sizes ? sizeModalItem.sizes.split(',').map((s: any) => s.trim()) : ['S', 'M', 'L', 'XL', 'XXL']).map((size: string) => (
+                <button
+                  key={size}
+                  onClick={() => handleSizeSelect(size)}
+                  className="rounded-xl border border-gray-200 bg-white py-3 text-sm font-bold text-slate-700 transition-all hover:border-[#1c5d4a] hover:bg-[#1c5d4a]/5 active:scale-95"
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setSizeModalItem(null)}
+              className="w-full rounded-xl bg-gray-100 py-3 text-sm font-bold text-slate-600 transition-all hover:bg-gray-200 active:scale-95"
+            >
+              Cancel
+            </button>
           </div>
         </div>
       )}

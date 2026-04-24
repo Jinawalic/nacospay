@@ -4,7 +4,7 @@ export type Transaction = {
   id: string;
   txnId: string;
   kind: TransactionKind;
-  typeLabel: 'NACOS Dues' | 'T-Shirt / ID Card';
+  typeLabel: 'NACOS Dues' | 'T-Shirt / ID Card' | 'Dues & Merchandise';
   student: string;
   details: string;
   amount: number;
@@ -14,7 +14,14 @@ export type Transaction = {
   matricNo?: string;
 };
 
-export const studentName = 'Jinawa Titus';
+export const studentName = typeof window !== 'undefined' && localStorage.getItem('nacos_student')
+  ? JSON.parse(localStorage.getItem('nacos_student')!).name || 'Jinawa Titus'
+  : 'Jinawa Titus';
+
+export const studentMatric = typeof window !== 'undefined' && localStorage.getItem('nacos_student')
+  ? JSON.parse(localStorage.getItem('nacos_student')!).matricNo || 'NACOS/CS/24/019'
+  : 'NACOS/CS/24/019';
+
 export const transactionStorageKey = 'nacospay.transactions.v1';
 
 export const duesLevels = [
@@ -30,44 +37,7 @@ export const merchandiseItem = {
   amount: 8500,
 };
 
-export const initialTransactions: Transaction[] = [
-  {
-    id: 'txn-1',
-    txnId: 'NP-260418-A1',
-    kind: 'dues',
-    typeLabel: 'NACOS Dues',
-    student: studentName,
-    details: '100L, 200L, 300L',
-    amount: 15000,
-    dateISO: '2026-04-18T10:24:00.000Z',
-    status: 'Paid',
-    paymentMethod: 'Card payment',
-  },
-  {
-    id: 'txn-2',
-    txnId: 'NP-260410-B2',
-    kind: 'merchandise',
-    typeLabel: 'T-Shirt / ID Card',
-    student: studentName,
-    details: '1 item bundle',
-    amount: 8500,
-    dateISO: '2026-04-10T15:42:00.000Z',
-    status: 'Paid',
-    paymentMethod: 'Card payment',
-  },
-  {
-    id: 'txn-3',
-    txnId: 'NP-260314-C3',
-    kind: 'dues',
-    typeLabel: 'NACOS Dues',
-    student: studentName,
-    details: '400L, 500L',
-    amount: 10000,
-    dateISO: '2026-03-14T09:12:00.000Z',
-    status: 'Paid',
-    paymentMethod: 'Card payment',
-  },
-];
+export const initialTransactions: Transaction[] = [];
 
 let memoryTransactions = initialTransactions;
 const listeners = new Set<() => void>();
@@ -183,3 +153,18 @@ export function makeTxnId() {
   const timestamp = Date.now().toString(36).slice(-6).toUpperCase();
   return `NP-${timestamp}-${randomPart}`;
 }
+
+export async function syncTransactionsWithServer(studentId: string) {
+  if (!studentId) return;
+  
+  try {
+    const res = await fetch(`/api/student/transactions/${studentId}`);
+    const data = await res.json();
+    if (Array.isArray(data)) {
+      setTransactionsSnapshot(data);
+    }
+  } catch (e) {
+    console.error('Failed to sync transactions:', e);
+  }
+}
+

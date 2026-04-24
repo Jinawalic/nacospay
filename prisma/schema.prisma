@@ -41,6 +41,7 @@ model Due {
   amount      Float
   session     String
   description String?
+  sizes       String?  // Comma-separated sizes for merchandise
   status      String   @default("Published") // Published, Draft
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

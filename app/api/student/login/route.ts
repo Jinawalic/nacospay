@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
+import { cookies } from 'next/headers';
 
 export async function POST(request: Request) {
   try {
@@ -26,6 +27,16 @@ export async function POST(request: Request) {
     if (!isMatch) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
+
+    // Set cookie for authentication
+    const cookieStore = await cookies();
+    cookieStore.set('nacos_student_session', student.id, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24, // 1 day
+      path: '/',
+    });
 
     // In a real app, you'd set a cookie/session here.
     // For now, we return the student data (minus password)
