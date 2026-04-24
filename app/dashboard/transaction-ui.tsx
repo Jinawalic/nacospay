@@ -35,56 +35,99 @@ export function TransactionItem({ transaction }: { transaction: Transaction }) {
     try {
       const { jsPDF } = await import('jspdf');
       const doc = new jsPDF({ unit: 'pt', format: 'a4' });
-      const margin = 42;
-      let y = 56;
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 50;
+      let y = 80;
 
+      // Header Background
       doc.setFillColor(28, 93, 74);
-      doc.rect(0, 0, 595.28, 96, 'F');
+      doc.rect(0, 0, pageWidth, 120, 'F');
+      
+      // Logo/Header Text (Centered)
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(22);
-      doc.text('NACOS PAY RECEIPT', margin, y);
+      doc.setFontSize(28);
+      const title = 'NACOS PAY RECEIPT';
+      doc.text(title, pageWidth / 2, y, { align: 'center' });
+      
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(11);
-      doc.text('Official student payment receipt', margin, y + 24);
+      doc.setFontSize(14);
+      const subtitle = 'Official Student Payment Receipt';
+      doc.text(subtitle, pageWidth / 2, y + 25, { align: 'center' });
 
+      // Transaction Title
+      y = 170;
       doc.setTextColor(11, 79, 54);
-      doc.setFontSize(15);
-      doc.text('Transaction Summary', margin, 132);
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Transaction Summary', pageWidth / 2, y, { align: 'center' });
+      
       doc.setDrawColor(28, 93, 74);
-      doc.setLineWidth(1);
-      doc.line(margin, 140, 553, 140);
+      doc.setLineWidth(2);
+      doc.line(margin, y + 10, pageWidth - margin, y + 10);
 
       const pdfCurrency = (amount: number) => `NGN ${amount.toLocaleString('en-NG')}`;
 
       const rows = [
-        ['TXN ID', transaction.txnId],
-        ['Student', transaction.student],
-        ['Matric.No', transaction.matricNo || 'N/A'],
-        ['Type', transaction.typeLabel],
-        ['Details', transaction.details],
-        ['Amount', pdfCurrency(transaction.amount)],
-        ['Date', new Date(transaction.dateISO).toLocaleString('en-NG')],
-        ['Status', transaction.status],
+        ['TRANSACTION ID', transaction.txnId],
+        ['STUDENT NAME', transaction.student],
+        ['MATRIC NUMBER', transaction.matricNo || 'N/A'],
+        ['PAYMENT TYPE', transaction.typeLabel],
+        ['DESCRIPTION', transaction.details],
+        ['AMOUNT PAID', pdfCurrency(transaction.amount)],
+        ['DATE & TIME', new Date(transaction.dateISO).toLocaleString('en-NG')],
+        ['PAYMENT STATUS', transaction.status.toUpperCase()],
       ] as const;
 
-      y = 168;
-      rows.forEach(([label, value]) => {
-        doc.setTextColor(110, 110, 110);
-        doc.setFontSize(11);
-        doc.text(label, margin, y);
-        doc.setTextColor(28, 93, 74);
+      y = 220;
+      const rowHeight = 35;
+      const labelX = margin + 20;
+      const valueX = pageWidth / 2;
+
+      rows.forEach(([label, value], index) => {
+        if (index % 2 === 0) {
+          doc.setFillColor(248, 250, 252);
+          doc.rect(margin, y - 20, pageWidth - (margin * 2), rowHeight, 'F');
+        }
+
+        doc.setTextColor(100, 116, 139);
         doc.setFont('helvetica', 'bold');
-        doc.text(String(value), margin + 135, y);
+        doc.setFontSize(10);
+        doc.text(label, labelX, y);
+
+        doc.setTextColor(15, 23, 42);
         doc.setFont('helvetica', 'normal');
-        y += 26;
+        doc.setFontSize(12);
+        doc.text(String(value), valueX, y);
+        
+        y += rowHeight;
       });
 
-      doc.setTextColor(11, 79, 54);
+      // Total Section
+      y += 20;
+      doc.setFillColor(11, 79, 54);
+      doc.roundedRect(margin, y, pageWidth - (margin * 2), 60, 10, 10, 'F');
+      
+      doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(13);
-      doc.text(`Total paid: ${pdfCurrency(transaction.amount)}`, margin, y + 18);
-      doc.save(`${transaction.txnId}.pdf`);
+      doc.setFontSize(18);
+      const totalText = `TOTAL PAID: ${pdfCurrency(transaction.amount)}`;
+      doc.text(totalText, pageWidth / 2, y + 37, { align: 'center' });
+
+      // Footer
+      doc.setTextColor(148, 163, 184);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'italic');
+      doc.text('This is a computer-generated receipt and requires no signature.', pageWidth / 2, pageHeight - 40, { align: 'center' });
+      doc.text(`Generated on ${new Date().toLocaleString()}`, pageWidth / 2, pageHeight - 25, { align: 'center' });
+      
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(window.navigator.userAgent);
+      if (isMobile) {
+        window.open(doc.output('bloburl'), '_blank');
+      } else {
+        doc.save(`${transaction.txnId}.pdf`);
+      }
     } catch (err) {
       console.error('Download failed', err);
     } finally {

@@ -58,7 +58,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
 
         <button
-          onClick={() => router.push('/')}
+          onClick={async () => {
+            await fetch('/api/logout', { method: 'POST' });
+            localStorage.removeItem('nacos_student');
+            window.location.href = '/';
+          }}
           className="mt-auto flex items-center gap-4 px-4 py-4 rounded-2xl text-red-500 hover:bg-red-50 transition-all font-bold text-sm"
         >
           Sign Out

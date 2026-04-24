@@ -126,7 +126,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         <button
           type="button"
-          onClick={() => router.push('/admin/login')}
+          onClick={async () => {
+            await fetch('/api/logout', { method: 'POST' });
+            window.location.href = '/';
+          }}
           className={[
             'flex w-full items-center gap-3 rounded-2xl px-4 py-4 text-left text-sm font-bold text-red-500 transition-all hover:bg-red-50',
             collapsed ? 'justify-center px-0' : '',
@@ -253,7 +256,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="mt-auto space-y-3">
           <button
             type="button"
-            onClick={() => router.push('/admin/login')}
+            onClick={async () => {
+              await fetch('/api/logout', { method: 'POST' });
+              window.location.href = '/';
+            }}
             className="flex w-full items-center gap-3 rounded-2xl px-4 py-4 text-left text-sm font-bold text-red-500 transition-all hover:bg-red-50"
           >
             <X size={18} />

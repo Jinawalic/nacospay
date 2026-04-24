@@ -12,8 +12,8 @@ export function middleware(request: NextRequest) {
   if (isAdminPath) {
     const adminSession = request.cookies.get('nacos_admin_session');
     if (!adminSession) {
-      const loginUrl = new URL('/admin/login', request.url);
-      return NextResponse.redirect(loginUrl);
+      // Redirect unauthenticated admin to Admin Login
+      return NextResponse.redirect(new URL('/admin/login', request.url));
     }
   }
 
@@ -21,12 +21,21 @@ export function middleware(request: NextRequest) {
   if (isStudentPath) {
     const studentSession = request.cookies.get('nacos_student_session');
     if (!studentSession) {
-      const loginUrl = new URL('/login', request.url);
-      return NextResponse.redirect(loginUrl);
+      // Redirect unauthenticated student to homepage as requested
+      return NextResponse.redirect(new URL('/', request.url));
     }
   }
 
-  return NextResponse.next();
+  const response = NextResponse.next();
+
+  // Add headers to prevent caching for protected routes (prevents back-button access after logout)
+  if (isAdminPath || isStudentPath) {
+    response.headers.set('Cache-Control', 'no-store, max-age=0, must-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
+  }
+
+  return response;
 }
 
 // Config to match all relevant paths
