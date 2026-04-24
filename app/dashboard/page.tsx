@@ -93,7 +93,19 @@ export default function Dashboard() {
     timers.current = [];
   };
 
+  const [isSizeModalOpen, setIsSizeModalOpen] = useState(false);
+  const [selectedMerch, setSelectedMerch] = useState<any>(null);
+
   const navigateWithLoading = (href: string, action: DashboardAction) => {
+    if (action === 'merch') {
+      const merch = availableDues.find(d => isMerch(d.title));
+      if (merch) {
+        setSelectedMerch(merch);
+        setIsSizeModalOpen(true);
+        return;
+      }
+    }
+
     clearTimers();
     setPendingAction(action);
 
@@ -102,6 +114,13 @@ export default function Dashboard() {
     }, 180);
 
     timers.current.push(timer);
+  };
+
+  const handleSizeSelect = (size: string) => {
+    setIsSizeModalOpen(false);
+    setPendingAction('merch');
+    // Navigate to activity with pre-selected merch and size
+    router.push(`/dashboard/activity?open=payment&type=merchandise&merchId=${selectedMerch.id}&size=${size}`);
   };
 
   const quickActions = [
@@ -402,6 +421,49 @@ export default function Dashboard() {
             >
               Close
             </button>
+          </div>
+        </div>
+      )}
+      {/* Size Selection Modal */}
+      {isSizeModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300 lg:items-center p-4">
+          <div className="w-full max-w-sm animate-in slide-in-from-bottom-5 duration-300">
+            <Card className="p-8 !rounded-[2rem] border-0 shadow-2xl relative overflow-hidden bg-white">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-[#1c5d4a]/5 rounded-full -mr-16 -mt-16" />
+              
+              <div className="relative z-10">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#1c5d4a]/10 text-[#1c5d4a]">
+                    <Shirt size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-800">Select Size</h3>
+                    <p className="text-sm font-medium text-slate-500">For {selectedMerch?.title}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3 mb-8">
+                  {(selectedMerch?.sizes?.split(',') || ['S', 'M', 'L', 'XL', 'XXL']).map((size: string) => (
+                    <button
+                      key={size}
+                      onClick={() => handleSizeSelect(size)}
+                      className="flex h-14 items-center justify-center rounded-2xl border-2 border-gray-100 bg-slate-50 text-base font-bold text-slate-700 transition-all hover:border-[#1c5d4a] hover:bg-[#1c5d4a]/5 hover:text-[#1c5d4a] active:scale-95"
+                    >
+                      {size.trim()}
+                    </button>
+                  ))}
+                </div>
+
+                <Button
+                  onClick={() => setIsSizeModalOpen(false)}
+                  variant="ghost"
+                  fullWidth
+                  className="!rounded-2xl py-3 text-slate-400 hover:text-slate-600"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </Card>
           </div>
         </div>
       )}

@@ -17,6 +17,9 @@ export async function GET(
       where: {
         studentId: studentId,
       },
+      include: {
+        student: true,
+      },
       orderBy: {
         createdAt: 'desc',
       },
@@ -27,7 +30,8 @@ export async function GET(
       txnId: t.reference,
       kind: t.type.toLowerCase().includes('merch') ? 'merchandise' : 'dues',
       typeLabel: t.type,
-      student: 'You', // Since it's for the logged in student
+      student: t.student.name,
+      matricNo: t.student.matricNo,
       details: t.details || '',
       amount: t.amount,
       dateISO: t.createdAt.toISOString(),

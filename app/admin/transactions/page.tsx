@@ -65,14 +65,18 @@ export default function AdminTransactionsPage() {
         statusFilter === 'All' ? true : transaction.status === statusFilter;
 
       const matchesType =
-        typeFilter === 'All' ? true : transaction.type === typeFilter;
+        typeFilter === 'All' 
+          ? true 
+          : typeFilter === 'Merchandise'
+            ? (transaction.type.toLowerCase().includes('shirt') || transaction.type.toLowerCase().includes('id') || transaction.type.toLowerCase().includes('merchandise'))
+            : transaction.type.toLowerCase().includes(typeFilter.toLowerCase());
 
       return matchesSearch && matchesStatus && matchesType;
     });
   }, [search, statusFilter, typeFilter, transactions]);
 
   const [pageSize, setPageSize] = useState(10);
-  
+
   useEffect(() => {
     setPage(1);
   }, [pageSize]);
@@ -124,6 +128,39 @@ export default function AdminTransactionsPage() {
     }
   };
 
+  const handleExport = () => {
+    if (filteredTransactions.length === 0) {
+      alert('No transactions to export');
+      return;
+    }
+
+    const headers = ['Reference', 'Student', 'Matric No', 'Type', 'Details', 'Amount', 'Date', 'Status', 'Channel'];
+    const csvContent = [
+      headers.join(','),
+      ...filteredTransactions.map(t => [
+        t.reference,
+        `"${t.student}"`,
+        t.matricNo,
+        `"${t.type}"`,
+        `"${t.details}"`,
+        t.amount,
+        formatDate(t.dateISO),
+        t.status,
+        t.channel
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `transactions_export_${typeFilter.toLowerCase()}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="w-full">
       {/* Header Actions */}
@@ -135,7 +172,11 @@ export default function AdminTransactionsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" className="gap-2 border-gray-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-xl px-4 py-2 shadow-sm">
+          <Button 
+            onClick={handleExport}
+            variant="outline" 
+            className="gap-2 border-gray-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-xl px-4 py-2 shadow-sm"
+          >
             <Download size={16} />
             Export Transactions
           </Button>
@@ -168,17 +209,6 @@ export default function AdminTransactionsPage() {
             <option value="All">All Types</option>
             <option value="Dues">Dues</option>
             <option value="Merchandise">T-Shirt/ID Card</option>
-            <option value="Event">Event</option>
-          </select>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-            className="border border-gray-200 text-slate-700 bg-white hover:bg-slate-50 rounded-xl px-4 py-2.5 shadow-sm text-sm font-medium focus:outline-none focus:border-[#1c5d4a]"
-          >
-            <option value="All">All Status</option>
-            <option value="Paid">Paid</option>
-            <option value="Pending">Pending</option>
-            <option value="Failed">Failed</option>
           </select>
         </div>
       </div>

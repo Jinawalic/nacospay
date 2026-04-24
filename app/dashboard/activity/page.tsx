@@ -163,6 +163,18 @@ function ActivityPageBody() {
   }, []);
 
   useEffect(() => {
+    const merchId = searchParams.get('merchId');
+    const size = searchParams.get('size');
+    
+    // If we have size and merchId in URL, pre-select them and jump to review (Step 2)
+    if (merchId && size && isModalOpen && paymentMode === 'merchandise' && step === 1 && !fetchingDues) {
+      setSelectedLevels([merchId]);
+      setSelectedSizes({ [merchId]: size });
+      setStep(2);
+    }
+  }, [searchParams, isModalOpen, paymentMode, step, fetchingDues]);
+
+  useEffect(() => {
     initializeTransactionsStore();
 
     fetch('/api/admin/dues')
@@ -235,7 +247,7 @@ function ActivityPageBody() {
   }, [selectedLevels, paymentOptions]);
 
   useEffect(() => {
-    if (isModalOpen && paymentMode === 'merch' && step === 1 && !fetchingDues && paymentOptions.length > 0) {
+    if (isModalOpen && paymentMode === 'merchandise' && step === 1 && !fetchingDues && paymentOptions.length > 0) {
       const merch = paymentOptions.filter(o => o.isMerch);
       if (merch.length >= 1 && !sizeModalItem && selectedLevels.length === 0) {
         setSizeModalItem(merch[0]);
@@ -346,7 +358,7 @@ function ActivityPageBody() {
     }
   };
 
-  const visibleOptions = paymentOptions.filter(opt => paymentMode === 'all' || (paymentMode === 'dues' && !opt.isMerch) || (paymentMode === 'merch' && opt.isMerch));
+  const visibleOptions = paymentOptions.filter(opt => paymentMode === 'all' || (paymentMode === 'dues' && !opt.isMerch) || (paymentMode === 'merchandise' && opt.isMerch));
 
   const handleProceed = () => {
     clearTimers();

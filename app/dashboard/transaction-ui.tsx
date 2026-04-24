@@ -28,39 +28,116 @@ export function TransactionItem({ transaction }: { transaction: Transaction }) {
     ? 'bg-[#1c5d4a]/10 text-[#1c5d4a]'
     : 'bg-[#154638]/10 text-[#154638]';
 
-  return (
-    <div className="flex items-start gap-4 rounded-xl border border-gray-100 bg-white p-4 shadow-[0_10px_30px_rgba(11,79,54,0.04)]">
-      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${iconClasses}`}>
-        <Icon size={20} />
-      </div>
+    const [isDownloading, setIsDownloading] = useState(false);
 
-      <div className="min-w-0 flex-1 space-y-2">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h4 className="truncate text-sm font-bold tracking-tight text-slate-800">
-              {transaction.typeLabel}
-            </h4>
-            <p className="mt-1 flex items-center gap-1 text-xs font-medium text-slate-500">
-              <CalendarDays size={12} className="shrink-0" />
-              <span>{formatDate(transaction.dateISO)}</span>
-              <span className="text-slate-300">|</span>
-              <span className="truncate">{transaction.details}</span>
+    const handleDownload = async () => {
+      setIsDownloading(true);
+      try {
+        const { jsPDF } = await import('jspdf');
+        const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+        const margin = 42;
+        let y = 56;
+
+        doc.setFillColor(28, 93, 74);
+        doc.rect(0, 0, 595.28, 96, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(22);
+        doc.text('NACOS PAY RECEIPT', margin, y);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(11);
+        doc.text('Official student payment receipt', margin, y + 24);
+
+        doc.setTextColor(11, 79, 54);
+        doc.setFontSize(15);
+        doc.text('Transaction Summary', margin, 132);
+        doc.setDrawColor(28, 93, 74);
+        doc.setLineWidth(1);
+        doc.line(margin, 140, 553, 140);
+
+        const pdfCurrency = (amount: number) => `NGN ${amount.toLocaleString('en-NG')}`;
+
+        const rows = [
+          ['TXN ID', transaction.txnId],
+          ['Student', transaction.student],
+          ['Matric.No', transaction.matricNo || 'N/A'],
+          ['Type', transaction.typeLabel],
+          ['Details', transaction.details],
+          ['Amount', pdfCurrency(transaction.amount)],
+          ['Date', new Date(transaction.dateISO).toLocaleString('en-NG')],
+          ['Status', transaction.status],
+        ] as const;
+
+        y = 168;
+        rows.forEach(([label, value]) => {
+          doc.setTextColor(110, 110, 110);
+          doc.setFontSize(11);
+          doc.text(label, margin, y);
+          doc.setTextColor(28, 93, 74);
+          doc.setFont('helvetica', 'bold');
+          doc.text(String(value), margin + 135, y);
+          doc.setFont('helvetica', 'normal');
+          y += 26;
+        });
+
+        doc.setTextColor(11, 79, 54);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(13);
+        doc.text(`Total paid: ${pdfCurrency(transaction.amount)}`, margin, y + 18);
+        doc.save(`${transaction.txnId}.pdf`);
+      } catch (err) {
+        console.error('Download failed', err);
+      } finally {
+        setIsDownloading(false);
+      }
+    };
+
+    return (
+      <div className="flex items-start gap-4 rounded-xl border border-gray-100 bg-white p-4 shadow-[0_10px_30px_rgba(11,79,54,0.04)] hover:border-[#1c5d4a]/20 transition-all">
+        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${iconClasses}`}>
+          <Icon size={20} />
+        </div>
+
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h4 className="truncate text-sm font-bold tracking-tight text-slate-800">
+                {transaction.typeLabel}
+              </h4>
+              <p className="mt-1 flex items-center gap-1 text-xs font-medium text-slate-500">
+                <CalendarDays size={12} className="shrink-0" />
+                <span>{formatDate(transaction.dateISO)}</span>
+                <span className="text-slate-300">|</span>
+                <span className="truncate">{transaction.details}</span>
+              </p>
+            </div>
+
+            <div className="shrink-0 rounded-full bg-[#1c5d4a]/10 px-3 py-1 text-[10px] font-bold tracking-wide text-[#1c5d4a]">
+              {transaction.status}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-sm font-black tracking-tight text-[#a33b3b]">
+              - {formatCurrency(transaction.amount)}
             </p>
+            
+            <button
+              onClick={handleDownload}
+              disabled={isDownloading}
+              className="flex h-8 items-center gap-1.5 rounded-lg border border-gray-100 bg-slate-50 px-2.5 text-[10px] font-bold text-slate-600 transition-all hover:border-[#1c5d4a]/20 hover:bg-[#1c5d4a]/5 hover:text-[#1c5d4a] active:scale-95 disabled:opacity-50"
+            >
+              {isDownloading ? (
+                <Loader2 size={12} className="animate-spin" />
+              ) : (
+                <Download size={12} />
+              )}
+              Receipt
+            </button>
           </div>
-
-          <div className="shrink-0 rounded-full bg-[#1c5d4a]/10 px-3 py-1 text-[10px] font-bold tracking-wide text-[#1c5d4a]">
-            {transaction.status}
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between gap-4">
-          <p className="text-sm font-black tracking-tight text-[#a33b3b]">
-            - {formatCurrency(transaction.amount)}
-          </p>
         </div>
       </div>
-    </div>
-  );
+    );
 }
 
 export function TransactionTable({
@@ -143,7 +220,7 @@ export function TransactionTable({
       const rows = [
         ['TXN ID', transaction.txnId],
         ['Student', transaction.student],
-        ['Matric.No', transaction.matricNo || 'NACOS/CS/24/019'],
+        ['Matric.No', transaction.matricNo || 'N/A'],
         ['Type', transaction.typeLabel],
         ['Details', transaction.details],
         ['Amount', pdfCurrency(transaction.amount)],
@@ -449,7 +526,7 @@ export function ReceiptPreviewCard({
   const receiptRows = [
     { label: 'TXN ID', value: transaction.txnId },
     { label: 'Student', value: transaction.student },
-    { label: 'Matric.No', value: transaction.matricNo || 'NACOS/CS/24/019' },
+    { label: 'Matric.No', value: transaction.matricNo || 'N/A' },
     { label: 'Type', value: transaction.typeLabel },
     { label: 'Details', value: transaction.details },
     { label: 'Amount', value: formatCurrency(transaction.amount) },
