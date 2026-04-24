@@ -93,13 +93,13 @@ export function TransactionItem({ transaction }: { transaction: Transaction }) {
   };
 
   return (
-    <div className="group flex items-start gap-4 rounded-xl border border-gray-100 bg-white p-5 transition-all hover:border-[#1c5d4a]/20 hover:shadow-[0_20px_50px_rgba(11,79,54,0.06)] active:scale-[0.98]">
-      <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ${iconClasses} transition-transform group-hover:scale-110`}>
+    <div className="group flex items-start gap-2 rounded-xl border border-gray-100 bg-white px-3 py-3 transition-all hover:border-[#1c5d4a]/20 hover:shadow-[0_20px_50px_rgba(11,79,54,0.06)] active:scale-[0.98]">
+      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconClasses} transition-transform group-hover:scale-110`}>
         <Icon size={24} />
       </div>
 
       <div className="min-w-0 flex-1">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-1">
           <div className="min-w-0">
             <h4 className="truncate text-base font-bold text-slate-800">
               {transaction.typeLabel}
@@ -121,7 +121,7 @@ export function TransactionItem({ transaction }: { transaction: Transaction }) {
           </div>
         </div>
 
-        <div className="mt-4 flex items-center justify-between gap-4">
+        <div className="mt-1 flex items-center justify-between gap-4">
           <p className="text-lg font-black tracking-tighter text-[#a33b3b]">
             - {formatCurrency(transaction.amount)}
           </p>
@@ -129,7 +129,7 @@ export function TransactionItem({ transaction }: { transaction: Transaction }) {
           <button
             onClick={handleDownload}
             disabled={isDownloading}
-            className="flex h-10 items-center gap-2 rounded-xl bg-[#1c5d4a]/5 px-4 text-xs font-black tracking-tight text-[#1c5d4a] transition-all hover:bg-[#1c5d4a] hover:text-white active:scale-95 disabled:opacity-50"
+            className="flex h-10 items-center gap-2 rounded-xl bg-[#1c5d4a]/5 px-4 text-xs font-bold text-[#1c5d4a] transition-all hover:bg-[#1c5d4a] hover:text-white active:scale-95 disabled:opacity-50"
           >
             {isDownloading ? (
               <Loader2 size={14} className="animate-spin" />
