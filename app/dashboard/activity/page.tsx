@@ -17,6 +17,7 @@ import {
   Loader2,
   Shirt,
   ShieldCheck,
+  Plus,
   Search,
 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -165,7 +166,7 @@ function ActivityPageBody() {
   useEffect(() => {
     const merchId = searchParams.get('merchId');
     const size = searchParams.get('size');
-    
+
     // If we have size and merchId in URL, pre-select them and jump to review (Step 2)
     if (merchId && size && isModalOpen && paymentMode === 'merchandise' && step === 1 && !fetchingDues) {
       setSelectedLevels([merchId]);
@@ -571,19 +572,19 @@ function ActivityPageBody() {
         onLoad={() => setPaystackReady(true)}
       />
 
-      <section className="mx-auto flex min-h-screen w-full flex-col bg-[#f8fafc] lg:min-h-[calc(100vh-3rem)] lg:max-w-7xl lg:rounded-[32px] lg:border lg:border-gray-200 lg:bg-white lg:px-8 lg:py-8 lg:shadow-[0_30px_90px_rgba(0,0,0,0.08)]">
-        <div className="flex-1 px-5 pb-6 pt-6 lg:px-0 lg:pb-0 lg:pt-0">
-          <div className="mb-6 flex items-center justify-between gap-4">
+      <section className="mx-auto flex min-h-screen w-full flex-col bg-[#f8fafc] lg:min-h-[calc(100vh-3rem)] lg:max-w-7xl lg:rounded-[40px] lg:border lg:border-gray-100 lg:bg-white lg:px-10 lg:py-10 lg:shadow-[0_40px_100px_rgba(0,0,0,0.06)]">
+        <div className="flex-1 px-5 pb-8 pt-8 lg:px-0 lg:pb-0 lg:pt-0">
+          <div className="mb-8 flex items-center justify-between gap-4">
             <button
               type="button"
               onClick={handleBack}
-              className="flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-200 bg-white text-slate-700 shadow-[0_10px_25px_rgba(11,79,54,0.05)] transition-transform active:scale-95"
+              className="flex h-12 w-12 items-center justify-center rounded-[1.25rem] border border-gray-100 bg-white text-slate-700 shadow-sm transition-all active:scale-90 lg:h-14 lg:w-14"
             >
               <ArrowLeft size={20} />
             </button>
 
             <div className="min-w-0 flex-1 px-2 text-center">
-              <h1 className="mt-1 text-xl font-bold text-slate-800">
+              <h1 className="mt-1 text-xl font-bold text-slate-800 lg:text-2xl">
                 Transaction History
               </h1>
             </div>
@@ -591,24 +592,26 @@ function ActivityPageBody() {
             <button
               type="button"
               onClick={() => openPaymentFlow()}
-              className="inline-flex h-11 items-center gap-2 rounded-2xl bg-[#1c5d4a] px-4 text-sm font-bold text-white transition-transform active:scale-95"
+              className="inline-flex h-12 items-center gap-2 rounded-xl bg-[#1c5d4a] px-5 text-sm font-bold text-white transition-all active:scale-95 lg:h-14 lg:px-8"
             >
-              <CreditCard size={16} />
-              <span>Pay</span>
+              <Plus size={20} strokeWidth={3} />
+              <span className="hidden sm:inline">New Payment</span>
             </button>
           </div>
 
-          <div className="mt-6">
-            <Input
-              className="rounded-xl bg-gray-100 p-4 shadow-[0_12px_30px_rgba(11,79,54,0.04)]"
-              placeholder="Search transactions..."
-              label=""
-              icon={<Search size={18} />}
-            />
+          <div className="mt-8">
+            <div className="relative">
+              <Input
+                className="!rounded-2xl border-0 !bg-gray-100/80 !p-5 !pl-14 text-base font-medium shadow-none focus:!bg-white focus:ring-2 focus:ring-[#1c5d4a]/10"
+                placeholder="Search by ID, Status or Description..."
+                label=""
+                icon={<Search size={22} className="text-slate-400" />}
+              />
+            </div>
           </div>
 
-          <div className="mt-6">
-            <div className="flex gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="mt-8">
+            <div className="flex gap-3 overflow-x-auto pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {filterOptions.map((option) => {
                 const active = filter === option.key;
                 return (
@@ -617,10 +620,10 @@ function ActivityPageBody() {
                     type="button"
                     onClick={() => setFilter(option.key)}
                     className={[
-                      'shrink-0 rounded-full px-4 py-2 text-sm font-bold transition-all',
+                      'shrink-0 rounded-2xl px-6 py-3 text-sm font-bold transition-all',
                       active
                         ? 'bg-[#1c5d4a] text-white'
-                        : 'border border-gray-200 bg-white text-slate-500',
+                        : 'bg-white border border-gray-100 text-slate-500 hover:border-[#1c5d4a]/30',
                     ].join(' ')}
                   >
                     {option.label}
@@ -630,15 +633,15 @@ function ActivityPageBody() {
             </div>
           </div>
 
-          <div className="mt-6 space-y-3 lg:hidden">
+          <div className="mt-4 space-y-4 lg:hidden">
             {filteredTransactions.length > 0 ? (
               filteredTransactions.map((transaction) => (
                 <TransactionItem key={transaction.txnId} transaction={transaction} />
               ))
             ) : (
               <EmptyTransactionsState
-                title="No transactions for this filter"
-                description="Try another filter or make a new payment to populate this view."
+                title="Nothing here yet"
+                description="Make your first departmental payment to populate this view."
               />
             )}
           </div>
