@@ -381,12 +381,13 @@ function ActivityPageBody() {
     const typeLabel = selectedOpts.some(o => !o.isMerch) && selectedOpts.some(o => o.isMerch) ? 'Dues & Merchandise' : selectedOpts.some(o => !o.isMerch) ? 'NACOS Dues' : 'T-Shirt / ID Card';
 
     try {
+      setPayLoading(true);
       const resp = await fetch('/api/student/payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           reference,
-          studentId: currentStudent?.id,
+          studentId: currentStudent?.id || localStorage.getItem('nacos_student_id'), // Fallback to extra safety
           amount: currentAmount,
           type: typeLabel,
           details,
@@ -394,11 +395,17 @@ function ActivityPageBody() {
         })
       });
 
+      const data = await resp.json();
+
       if (!resp.ok) {
-        throw new Error('Failed to record transaction');
+        throw new Error(data.error || 'Failed to record transaction');
       }
 
-      const transaction = buildTransaction(
+      // Use the transaction from the server if it exists, otherwise fallback to local build
+      const transaction = data.transaction ? {
+        ...data.transaction,
+        txnId: data.transaction.reference || data.transaction.txnId,
+      } : buildTransaction(
         selectedLevels,
         reference,
         paymentOptions,
@@ -416,10 +423,10 @@ function ActivityPageBody() {
       setReceiptTransaction(transaction);
       setPayLoading(false);
       setStep(3);
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.error('Payment Error:', err);
       setPayLoading(false);
-      alert('Payment was successful but we couldn\'t record it. Reference: ' + reference);
+      alert(`Payment successful with reference: ${reference}. However, we encountered an error recording it locally: ${err.message}. Please screenshot this message and contact admin.`);
     }
   };
 
@@ -453,7 +460,7 @@ function ActivityPageBody() {
       const paystack = new window.PaystackPop();
       paystack.newTransaction({
         key: paystackPublicKey,
-        email: currentStudent?.email || 'jinawa.titus@nacos.edu.ng',
+        email: currentStudent?.email || 'student@nacos.edu.ng',
         amount: Math.round(currentAmount * 100),
         currency: 'NGN',
         onSuccess: (transaction) => {
@@ -510,7 +517,7 @@ function ActivityPageBody() {
       const rows = [
         ['TXN ID', receiptTransaction.txnId],
         ['Student', receiptTransaction.student],
-        ['Matric.No', receiptTransaction.matricNo || 'NACOS/CS/24/019'],
+        ['Matric.No', receiptTransaction.matricNo || 'N/A'],
         ['Type', receiptTransaction.typeLabel],
         ['Details', receiptTransaction.details],
         ['Amount', pdfCurrency(receiptTransaction.amount)],
@@ -534,7 +541,16 @@ function ActivityPageBody() {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(13);
       doc.text(`Total paid: ${pdfCurrency(receiptTransaction.amount)}`, margin, y + 18);
-      doc.save(`${receiptTransaction.txnId}.pdf`);
+      
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(window.navigator.userAgent);
+      
+      if (isMobile) {
+        // More reliable for mobile browsers (opens PDF in new tab)
+        const pdfDataUri = doc.output('bloburl');
+        window.open(pdfDataUri, '_blank');
+      } else {
+        doc.save(`${receiptTransaction.txnId}.pdf`);
+      }
 
       setTimeout(() => {
         setDownloadLoading(false);
@@ -542,9 +558,11 @@ function ActivityPageBody() {
         setStep(1);
         setReceiptTransaction(null);
         router.replace('/dashboard');
-      }, 150);
-    } catch {
+      }, 500);
+    } catch (err) {
+      console.error('Receipt error:', err);
       setDownloadLoading(false);
+      alert('We could not generate the PDF automatically. Please take a screenshot of the summary instead.');
     }
   };
 
