@@ -29,6 +29,34 @@ export function TransactionItem({ transaction }: { transaction: Transaction }) {
     : 'bg-[#154638]/10 text-[#154638]';
 
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (!window.confirm('Are you sure you want to delete this transaction record? This action cannot be undone.')) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const resp = await fetch(`/api/admin/transactions/${transaction.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!resp.ok) {
+        throw new Error('Failed to delete transaction');
+      }
+
+      // Update local state by filtering out the deleted transaction
+      // This is a bit tricky because TransactionItem doesn't own the list state.
+      // But we can trigger a refresh via window location or a store update if available.
+      window.location.reload(); 
+    } catch (err) {
+      console.error('Delete failed:', err);
+      alert('Failed to delete transaction. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const handleDownload = async () => {
     setIsDownloading(true);
@@ -169,18 +197,33 @@ export function TransactionItem({ transaction }: { transaction: Transaction }) {
             - {formatCurrency(transaction.amount)}
           </p>
 
-          <button
-            onClick={handleDownload}
-            disabled={isDownloading}
-            className="flex h-10 items-center gap-2 rounded-xl bg-[#1c5d4a]/5 px-4 text-xs font-bold text-[#1c5d4a] transition-all hover:bg-[#1c5d4a] hover:text-white active:scale-95 disabled:opacity-50"
-          >
-            {isDownloading ? (
-              <Loader2 size={14} className="animate-spin" />
-            ) : (
-              <Download size={14} />
-            )}
-            <span className="hidden sm:inline">Receipt</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-500 transition-all hover:bg-red-500 hover:text-white active:scale-90 disabled:opacity-50"
+              title="Delete Record"
+            >
+              {isDeleting ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Trash2 size={18} />
+              )}
+            </button>
+
+            <button
+              onClick={handleDownload}
+              disabled={isDownloading}
+              className="flex h-10 items-center gap-2 rounded-xl bg-[#1c5d4a]/5 px-4 text-xs font-bold text-[#1c5d4a] transition-all hover:bg-[#1c5d4a] hover:text-white active:scale-95 disabled:opacity-50"
+            >
+              {isDownloading ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <Download size={14} />
+              )}
+              <span className="hidden sm:inline">Receipt</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
