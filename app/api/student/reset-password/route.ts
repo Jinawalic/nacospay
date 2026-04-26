@@ -7,8 +7,14 @@ export async function POST(request: Request) {
 
     const student = await prisma.student.findFirst({
       where: { 
-        matricNo,
-        email
+        matricNo: {
+          equals: matricNo,
+          mode: 'insensitive',
+        },
+        email: {
+          equals: email,
+          mode: 'insensitive',
+        }
       },
     });
 

@@ -25,12 +25,14 @@ type AdminOverviewDashboardProps = {
   students: AdminStudent[];
   dues: AdminDueItem[];
   transactions: AdminTransaction[];
+  admin: any;
 };
 
 export function AdminOverviewDashboard({
   students,
   dues,
   transactions,
+  admin,
 }: AdminOverviewDashboardProps) {
   const today = formatDate(new Date().toISOString());
   const studentStats = {
@@ -41,13 +43,52 @@ export function AdminOverviewDashboard({
 
   const publishedDues = dues.filter((due) => due.status === 'Published').length;
 
-  const duesRevenue = transactions.reduce((sum, t) => {
-    return t.status === 'Paid' && t.type === 'Dues' ? sum + t.amount : sum;
-  }, 0);
+  const calculateRevenues = () => {
+    let duesRev = 0;
+    let merchRev = 0;
 
-  const merchRevenue = transactions.reduce((sum, t) => {
-    return t.status === 'Paid' && t.type === 'Merchandise' ? sum + t.amount : sum;
-  }, 0);
+    const isMerchTitle = (title: string) => /t-shirt|t shirt|tshirt|shirt|id|merchandise|merch/i.test(title);
+
+    transactions.forEach((t) => {
+      if (t.status !== 'Paid') return;
+
+      const type = t.type.toLowerCase();
+      const isCombined = type.includes('&') || (type.includes('dues') && type.includes('merch'));
+
+      if (isCombined) {
+        // Intelligent Extraction Logic:
+        // We look at the 'details' string and match individual items against the 'dues' items database
+        // to determine exactly how much was for dues vs merchandise.
+        const items = (t.details || '').split(',').map((item) => item.trim());
+        let extractedDues = 0;
+
+        items.forEach((itemTitle) => {
+          // Find the base due item that matches this part of the title
+          const matchingDue = dues.find((d) => itemTitle.toLowerCase().includes(d.title.toLowerCase()));
+          
+          if (matchingDue && !isMerchTitle(matchingDue.title)) {
+            // Found a dues item. Account for level-specific additions (e.g., 100L fee)
+            let itemAmt = matchingDue.amount;
+            if (itemTitle.includes('100L')) itemAmt += 500;
+            extractedDues += itemAmt;
+          }
+        });
+
+        // Add the identified dues portion to dues revenue
+        duesRev += extractedDues;
+        // The remainder of the transaction is attributed to Merchandise/Others
+        merchRev += Math.max(0, t.amount - extractedDues);
+      } else if (type.includes('dues') || type.includes('levy')) {
+        duesRev += t.amount;
+      } else if (isMerchTitle(t.type) || type.includes('merchandise')) {
+        merchRev += t.amount;
+      }
+    });
+
+    return { duesRev, merchRev };
+  };
+
+  const { duesRev: duesRevenue, merchRev: merchRevenue } = calculateRevenues();
 
   const totalRevenue = transactions.reduce((sum, t) => {
     return t.status === 'Paid' ? sum + t.amount : sum;
@@ -126,7 +167,7 @@ export function AdminOverviewDashboard({
       <AdminTopBar
         title="Hi Admin👋"
         subtitle="Manage students, dues, transactions, and admin settings from one clean workspace."
-        profileName="Admin Panel"
+        profileName={admin?.name || "Admin Panel"}
         profileHandle="NACOS Pay"
       />
 

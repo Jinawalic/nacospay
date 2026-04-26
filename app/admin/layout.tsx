@@ -128,7 +128,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           type="button"
           onClick={async () => {
             await fetch('/api/logout', { method: 'POST' });
-            window.location.href = '/';
+            window.location.href = '/admin/login';
           }}
           className={[
             'flex w-full items-center gap-3 rounded-2xl px-4 py-4 text-left text-sm font-bold text-red-500 transition-all hover:bg-red-50',
@@ -203,70 +203,70 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             mobileOpen ? 'translate-x-0' : '-translate-x-full',
           ].join(' ')}
         >
-        <div className="flex items-center justify-between gap-3 px-2">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#1c5d4a]">
-              <Image src="/nacos_logo.png" alt="NACOS PAY" width={31} height={31} />
+          <div className="flex items-center justify-between gap-3 px-2">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#1c5d4a]">
+                <Image src="/nacos_logo.png" alt="NACOS PAY" width={31} height={31} />
+              </div>
+              <div>
+                <h1 className="mt-1 text-lg font-black tracking-tight text-slate-800">
+                  NACOS Admin
+                </h1>
+              </div>
             </div>
-            <div>
-              <h1 className="mt-1 text-lg font-black tracking-tight text-slate-800">
-                NACOS Admin
-              </h1>
-            </div>
+
+            <button
+              type="button"
+              onClick={() => setMobileOpen(false)}
+              className="flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-200 bg-white text-slate-700"
+            >
+              <X size={20} />
+            </button>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setMobileOpen(false)}
-            className="flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-200 bg-white text-slate-700"
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        <nav className="mt-8 space-y-2">
-          {navItems.map((item) => {
-            const active = item.href === '/admin'
-              ? pathname === item.href
-              : pathname === item.href || pathname.startsWith(`${item.href}/`);
-            return (
-              <button
-                key={item.label}
-                type="button"
-                onClick={() => handleNavigate(item.href)}
-                className={[
-                  'flex w-full items-center gap-3 rounded-2xl px-4 py-4 text-left transition-all',
-                  active
-                    ? 'bg-[#1c5d4a] text-white shadow-[0_18px_40px_rgba(28,93,74,0.18)]'
-                    : 'text-slate-500 hover:bg-slate-50 hover:text-[#1c5d4a]',
-                ].join(' ')}
-              >
-                <item.icon size={21} strokeWidth={active ? 2.4 : 2} />
-                <span className="min-w-0">
-                  <span className="block text-sm font-bold">{item.label}</span>
-                  <span className="mt-1 block text-[11px] font-medium text-inherit/70">
-                    {item.description}
+          <nav className="mt-8 space-y-2">
+            {navItems.map((item) => {
+              const active = item.href === '/admin'
+                ? pathname === item.href
+                : pathname === item.href || pathname.startsWith(`${item.href}/`);
+              return (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => handleNavigate(item.href)}
+                  className={[
+                    'flex w-full items-center gap-3 rounded-2xl px-4 py-4 text-left transition-all',
+                    active
+                      ? 'bg-[#1c5d4a] text-white shadow-[0_18px_40px_rgba(28,93,74,0.18)]'
+                      : 'text-slate-500 hover:bg-slate-50 hover:text-[#1c5d4a]',
+                  ].join(' ')}
+                >
+                  <item.icon size={21} strokeWidth={active ? 2.4 : 2} />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-bold">{item.label}</span>
+                    <span className="mt-1 block text-[11px] font-medium text-inherit/70">
+                      {item.description}
+                    </span>
                   </span>
-                </span>
-              </button>
-            );
-          })}
-        </nav>
+                </button>
+              );
+            })}
+          </nav>
 
-        <div className="mt-auto space-y-3">
-          <button
-            type="button"
-            onClick={async () => {
-              await fetch('/api/logout', { method: 'POST' });
-              window.location.href = '/';
-            }}
-            className="flex w-full items-center gap-3 rounded-2xl px-4 py-4 text-left text-sm font-bold text-red-500 transition-all hover:bg-red-50"
-          >
-            <X size={18} />
-            <span>Sign Out</span>
-          </button>
-        </div>
-      </aside>
+          <div className="mt-auto space-y-3">
+            <button
+              type="button"
+              onClick={async () => {
+                await fetch('/api/logout', { method: 'POST' });
+                window.location.href = '/';
+              }}
+              className="flex w-full items-center gap-3 rounded-2xl px-4 py-4 text-left text-sm font-bold text-red-500 transition-all hover:bg-red-50"
+            >
+              <X size={18} />
+              <span>Sign Out</span>
+            </button>
+          </div>
+        </aside>
       )}
     </div>
   );

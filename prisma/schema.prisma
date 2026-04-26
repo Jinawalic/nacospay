@@ -24,6 +24,8 @@ model Student {
   name         String
   matricNo     String        @unique
   email        String        @unique
+  phone        String?
+  balance      Float         @default(0)
   department   String
   level        String
   status       String        @default("Active") // Active, Pending, Inactive

@@ -9,8 +9,13 @@ export async function POST(request: Request) {
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    const student = await prisma.student.findUnique({
-      where: { matricNo }
+    const student = await prisma.student.findFirst({
+      where: {
+        matricNo: {
+          equals: matricNo,
+          mode: 'insensitive',
+        },
+      },
     });
 
     if (!student) {
@@ -33,7 +38,11 @@ export async function POST(request: Request) {
       path: '/',
     });
 
-    return NextResponse.json({ message: 'Password updated successfully' });
+    const { password: _, ...studentData } = student;
+    return NextResponse.json({ 
+      message: 'Password updated successfully',
+      student: studentData 
+    });
 
   } catch (error) {
     console.error('Password update error:', error);

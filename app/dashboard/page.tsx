@@ -39,7 +39,7 @@ export default function Dashboard() {
   const [pendingAction, setPendingAction] = useState<DashboardAction>(null);
   const [isComingSoonOpen, setIsComingSoonOpen] = useState(false);
   const [isMessagesOpen, setIsMessagesOpen] = useState(false);
-  const [studentName, setStudentName] = useState('Student');
+  const [student, setStudent] = useState<any>(null);
   const [availableDues, setAvailableDues] = useState<any[]>([]);
   const timers = useRef<number[]>([]);
 
@@ -51,7 +51,7 @@ export default function Dashboard() {
     },
     {
       title: 'Wallet update',
-      body: 'Your current wallet balance is NGN 2,000.',
+      body: `Your current wallet balance is NGN ${student?.balance?.toLocaleString() || '0.00'}.`,
       time: 'Today',
     },
     {
@@ -62,15 +62,34 @@ export default function Dashboard() {
   ];
 
   useEffect(() => {
-    const stored = localStorage.getItem('nacos_student');
-    if (stored) {
+    const fetchStudent = async () => {
       try {
-        const student = JSON.parse(stored);
-        if (student.name) setStudentName(student.name);
-        syncTransactionsWithServer(student.id);
-      } catch (e) { /* ignore */ }
-    }
+        const response = await fetch('/api/student/me');
+        if (response.ok) {
+          const data = await response.json();
+          setStudent(data);
+          localStorage.setItem('nacos_student', JSON.stringify(data));
+          syncTransactionsWithServer(data.id);
+        } else {
+          // Fallback to localStorage if API fails
+          const stored = localStorage.getItem('nacos_student');
+          if (stored) {
+            const studentData = JSON.parse(stored);
+            setStudent(studentData);
+            syncTransactionsWithServer(studentData.id);
+          }
+        }
+      } catch (e) {
+        const stored = localStorage.getItem('nacos_student');
+        if (stored) {
+          const studentData = JSON.parse(stored);
+          setStudent(studentData);
+          syncTransactionsWithServer(studentData.id);
+        }
+      }
+    };
 
+    fetchStudent();
     initializeTransactionsStore();
 
     fetch('/api/admin/dues')
@@ -97,6 +116,11 @@ export default function Dashboard() {
   const [selectedMerch, setSelectedMerch] = useState<any>(null);
 
   const navigateWithLoading = (href: string, action: DashboardAction) => {
+    if (action === 'all') {
+      setIsComingSoonOpen(true);
+      return;
+    }
+
     if (action === 'merch') {
       const merch = availableDues.find(d => isMerch(d.title));
       if (merch) {
@@ -169,7 +193,7 @@ export default function Dashboard() {
             WELCOME BACK
           </p>
           <h1 className="text-2xl font-bold tracking-tighter text-slate-800">
-            {studentName}
+            {student?.name || 'Student'}
           </h1>
         </div>
 
@@ -203,7 +227,7 @@ export default function Dashboard() {
           <div className="space-y-1">
             <p className="text-xs font-bold text-white/70 uppercase tracking-widest">Wallet Balance</p>
             <div className="flex items-baseline gap-2">
-              <span className="text-xl font-bold text-white lg:text-3xl">₦ 1,000</span>
+              <span className="text-xl font-bold text-white lg:text-3xl">₦ {student?.balance?.toLocaleString() || '0'}</span>
               <span className="text-xl font-bold text-white/50">.00</span>
             </div>
             <p className="pt-2 text-[10px] font-black uppercase tracking-[0.2em] text-white/40">

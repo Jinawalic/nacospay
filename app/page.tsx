@@ -76,8 +76,9 @@ export default function Login() {
       });
 
       if (response.ok) {
-        // After password update, we should have the student data or at least the matricNo
-        localStorage.setItem('nacos_student_matric', matricNumber);
+        const data = await response.json();
+        // Store student data so dashboard shows real name
+        localStorage.setItem('nacos_student', JSON.stringify(data.student));
         showToast('Password updated successfully! Redirecting...');
         setTimeout(() => {
           setShowFirstLoginModal(false);
@@ -204,7 +205,7 @@ export default function Login() {
 
               <div className="mt-10 text-center">
                 <p className="text-sm font-semibold text-gray-500">
-                  Not registered yet? <button className="text-nacos font-bold hover:underline">Contact Excos</button>
+                  Not registered yet? <a href="https://wa.me/2348133109787" target="_blank" rel="noopener noreferrer" className="text-nacos font-bold hover:underline">Contact Excos</a>
                 </p>
               </div>
             </Card>
@@ -248,7 +249,7 @@ export default function Login() {
 
       {/* Toast Notification */}
       {toast && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-top-5 duration-300">
+        <div className="fixed top-6 right-6 z-[100] animate-in slide-in-from-right-5 duration-300">
           <Card className={`p-4 min-w-[320px] flex items-center gap-3 border-0 !rounded-2xl !bg-[#1c5d4a] text-white`}>
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/20">
               <Check size={18} strokeWidth={3} />

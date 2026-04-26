@@ -23,7 +23,7 @@ export async function POST(request: Request) {
 
     // Set cookie for authentication
     const cookieStore = await cookies();
-    cookieStore.set('nacos_admin_session', 'true', {
+    cookieStore.set('nacos_admin_session', admin.id, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',

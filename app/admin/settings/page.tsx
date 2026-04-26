@@ -11,11 +11,12 @@ export default function AdminSettingsPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
   const [profile, setProfile] = useState({
-    name: 'Samuel Caron',
-    email: 'samuelcaron@delivermeat.co.uk',
-    phone: '123 456 7788',
+    name: '',
+    email: '',
+    phone: '',
   });
 
   const [form, setForm] = useState({ ...profile });
@@ -25,18 +26,78 @@ export default function AdminSettingsPage() {
     confirmPass: ''
   });
 
-  const handleSave = (e: React.FormEvent) => {
+  React.useEffect(() => {
+    const fetchAdmin = async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch('/api/admin/me');
+        if (response.ok) {
+          const data = await response.json();
+          const adminInfo = {
+            name: data.name || '',
+            email: data.email || '',
+            phone: data.phone || '',
+          };
+          setProfile(adminInfo);
+          setForm(adminInfo);
+        }
+      } catch (error) {
+        console.error('Failed to fetch admin:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchAdmin();
+  }, []);
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (passwords.newPass && passwords.newPass !== passwords.confirmPass) {
+      alert('New passwords do not match');
+      return;
+    }
+
     setSaving(true);
-    setTimeout(() => {
-      setProfile({ ...form });
+    try {
+      const response = await fetch('/api/admin/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...form,
+          currentPassword: passwords.current,
+          newPassword: passwords.newPass,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setProfile(data.admin);
+        setSaving(false);
+        setIsEditing(false);
+        setPasswords({ current: '', newPass: '', confirmPass: '' });
+        setSuccessMessage('Profile updated successfully!');
+        setTimeout(() => setSuccessMessage(''), 3000);
+      } else {
+        alert(data.error || 'Failed to update profile');
+        setSaving(false);
+      }
+    } catch (error) {
+      console.error('Error updating admin:', error);
+      alert('An error occurred');
       setSaving(false);
-      setIsEditing(false);
-      setPasswords({ current: '', newPass: '', confirmPass: '' });
-      setSuccessMessage('Profile updated successfully!');
-      setTimeout(() => setSuccessMessage(''), 3000);
-    }, 1000);
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-3">
+        <Loader2 className="animate-spin text-[#1c5d4a]" size={40} />
+        <p className="text-sm font-medium text-slate-500">Retrieving admin settings...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-5xl space-y-6 animate-in fade-in duration-300">

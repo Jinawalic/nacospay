@@ -9,25 +9,28 @@ export default function AdminOverviewPage() {
     students: any[];
     dues: any[];
     transactions: any[];
+    admin: any;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [studentsRes, duesRes, transactionsRes] = await Promise.all([
+        const [studentsRes, duesRes, transactionsRes, adminRes] = await Promise.all([
           fetch('/api/admin/students'),
           fetch('/api/admin/dues'),
-          fetch('/api/admin/transactions')
+          fetch('/api/admin/transactions'),
+          fetch('/api/admin/me')
         ]);
 
-        if (studentsRes.ok && duesRes.ok && transactionsRes.ok) {
-          const [students, dues, transactions] = await Promise.all([
+        if (studentsRes.ok && duesRes.ok && transactionsRes.ok && adminRes.ok) {
+          const [students, dues, transactions, admin] = await Promise.all([
             studentsRes.json(),
             duesRes.json(),
-            transactionsRes.json()
+            transactionsRes.json(),
+            adminRes.json()
           ]);
-          setData({ students, dues, transactions });
+          setData({ students, dues, transactions, admin });
         }
       } catch (error) {
         console.error('Failed to fetch admin dashboard data:', error);
@@ -53,6 +56,7 @@ export default function AdminOverviewPage() {
       students={data.students}
       dues={data.dues}
       transactions={data.transactions}
+      admin={data.admin}
     />
   );
 }

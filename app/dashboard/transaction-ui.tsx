@@ -546,7 +546,7 @@ export function TransactionTable({
       )}
 
       {isToastVisible && (
-        <div className="fixed bottom-6 left-1/2 z-[80] -translate-x-1/2">
+        <div className="fixed top-6 right-6 z-[80] animate-in slide-in-from-right-5 duration-300">
           <div className="flex items-center gap-3 rounded-2xl bg-[#1c5d4a] px-5 py-4 text-white shadow-[0_18px_50px_rgba(28,93,74,0.28)]">
             <CheckCircle2 size={20} />
             <p className="text-sm font-bold">{toastMessage}</p>

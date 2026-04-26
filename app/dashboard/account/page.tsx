@@ -20,6 +20,8 @@ import {
   User,
   Wallet,
   CheckCircle2,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import { Card } from '@/app/components/Card';
 import { Button } from '@/app/components/Button';
@@ -38,15 +40,34 @@ export default function AccountPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [comingSoonLabel, setComingSoonLabel] = useState('Coming soon.');
   const [student, setStudent] = useState<any>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [modalError, setModalError] = useState('');
 
   useEffect(() => {
-    const stored = localStorage.getItem('nacos_student');
-    if (stored) {
+    const fetchStudent = async () => {
       try {
-        setStudent(JSON.parse(stored));
-      } catch (e) { /* ignore */ }
-    }
-    
+        const response = await fetch('/api/student/me');
+        if (response.ok) {
+          const data = await response.json();
+          setStudent(data);
+          localStorage.setItem('nacos_student', JSON.stringify(data));
+        } else {
+          // Fallback to localStorage if API fails
+          const stored = localStorage.getItem('nacos_student');
+          if (stored) {
+            setStudent(JSON.parse(stored));
+          }
+        }
+      } catch (e) {
+        const stored = localStorage.getItem('nacos_student');
+        if (stored) {
+          setStudent(JSON.parse(stored));
+        }
+      }
+    };
+
+    fetchStudent();
+
     return () => {
       if (toastTimer.current) {
         window.clearTimeout(toastTimer.current);
@@ -55,9 +76,9 @@ export default function AccountPage() {
   }, []);
 
   const accountStats = [
-    { label: 'Wallet Balance', value: 'NGN 2,000', icon: Wallet, tone: 'bg-[#1c5d4a]/10 text-[#1c5d4a]' },
-    { label: 'Payments Made', value: '12', icon: CreditCard, tone: 'bg-[#154638]/10 text-[#154638]' },
-    { label: 'Membership', value: 'Active', icon: BadgeCheck, tone: 'bg-slate-100 text-slate-600' },
+    { label: 'Wallet Balance', value: `NGN ${student?.balance?.toLocaleString() || '0.00'}`, icon: Wallet, tone: 'bg-[#1c5d4a]/10 text-[#1c5d4a]' },
+    { label: 'Payments Made', value: student?.transactions?.length?.toString() || '0', icon: CreditCard, tone: 'bg-[#154638]/10 text-[#154638]' },
+    { label: 'Membership', value: student?.status || 'Active', icon: BadgeCheck, tone: 'bg-slate-100 text-slate-600' },
     { label: 'Session', value: '2024 / 2025', icon: Globe, tone: 'bg-[#1c5d4a]/5 text-[#1c5d4a]' },
   ];
 
@@ -99,6 +120,7 @@ export default function AccountPage() {
 
   const closeModal = () => {
     setActiveModal(null);
+    setModalError('');
   };
 
   const showToast = (message: string) => {
@@ -115,12 +137,63 @@ export default function AccountPage() {
     }, 2800);
   };
 
-  const handlePasswordUpdate = () => {
-    showToast('Password updated successfully. Your account is now protected.');
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    closeModal();
+  const handleSignOut = async () => {
+    try {
+      await fetch('/api/logout', { method: 'POST' });
+      localStorage.removeItem('nacos_student');
+      router.push('/');
+    } catch (error) {
+      console.error('Sign out failed:', error);
+      router.push('/');
+    }
+  };
+
+  const handlePasswordUpdate = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setModalError('Please fill in all fields.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setModalError('Passwords do not match.');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setModalError('New password must be at least 6 characters.');
+      return;
+    }
+
+    setIsUpdating(true);
+    setModalError('');
+
+    try {
+      const response = await fetch('/api/student/account/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        showToast('Password updated! Returning to dashboard...');
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        
+        setTimeout(() => {
+          closeModal();
+          router.push('/dashboard');
+        }, 1500);
+      } else {
+        setModalError(data.error || 'Failed to update password.');
+      }
+    } catch (error) {
+      setModalError('A network error occurred. Please try again.');
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   return (
@@ -244,13 +317,13 @@ export default function AccountPage() {
           type="button"
           variant="outline"
           className="!rounded-2xl !border-gray-200 !text-red-500 lg:hidden"
-          onClick={() => router.push('/')}
+          onClick={handleSignOut}
         >
           Sign Out
         </Button>
       </section>
 
-{/* Security Modal */}
+      {/* Security Modal */}
       {activeModal === 'security' && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 px-4">
           <button
@@ -315,11 +388,19 @@ export default function AccountPage() {
                 className="!rounded-xl !bg-gray-100"
               />
             </div>
+            
+            {modalError && (
+              <div className="mt-4 flex items-center gap-2 rounded-xl bg-red-50 p-3 text-xs font-bold text-red-500 animate-in fade-in zoom-in-95 duration-200">
+                <AlertCircle size={14} />
+                <p>{modalError}</p>
+              </div>
+            )}
 
             <div className="mt-6 flex gap-3">
               <Button
                 type="button"
                 variant="outline"
+                disabled={isUpdating}
                 className="flex-1 !rounded-2xl !border-gray-200 "
                 onClick={closeModal}
               >
@@ -327,17 +408,22 @@ export default function AccountPage() {
               </Button>
               <Button
                 type="button"
+                disabled={isUpdating}
                 className="flex-1 !rounded-2xl !bg-[#1c5d4a] !text-white"
                 onClick={handlePasswordUpdate}
               >
-                Update Password
+                {isUpdating ? (
+                  <Loader2 className="animate-spin" size={18} />
+                ) : (
+                  'Update Password'
+                )}
               </Button>
             </div>
           </div>
         </div>
       )}
 
-{/* Coming Soon Modal */}
+      {/* Coming Soon Modal */}
       {activeModal === 'coming-soon' && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 px-4">
           <button
@@ -368,7 +454,7 @@ export default function AccountPage() {
       )}
 
       {isToastVisible && (
-        <div className="fixed bottom-6 left-1/2 z-[70] -translate-x-1/2">
+        <div className="fixed top-6 right-6 z-[70] animate-in slide-in-from-right-5 duration-300">
           <div className="flex items-center gap-3 rounded-2xl bg-[#1c5d4a] px-5 py-4 text-white shadow-[0_18px_50px_rgba(28,93,74,0.28)]">
             <CheckCircle2 size={20} />
             <p className="text-sm font-bold">{toastMessage}</p>

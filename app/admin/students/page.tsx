@@ -352,7 +352,17 @@ export default function AdminStudentsPage() {
                     </td>
                     <td className="px-5 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-3">
-                        <button onClick={() => setStudentToEdit(student)} className="text-slate-400 hover:text-[#1c5d4a] transition-colors">
+                        <button 
+                          onClick={() => {
+                            const cleanedStudent = { ...student };
+                            // If password is a hash, clear it so it doesn't show in the input
+                            if (cleanedStudent.password?.startsWith('$2b$')) {
+                              cleanedStudent.password = '';
+                            }
+                            setStudentToEdit(cleanedStudent);
+                          }} 
+                          className="text-slate-400 hover:text-[#1c5d4a] transition-colors"
+                        >
                           <Edit2 size={16} />
                         </button>
                         <button onClick={() => setStudentToDelete(student)} className="text-slate-400 hover:text-red-500 transition-colors">
@@ -475,7 +485,7 @@ export default function AdminStudentsPage() {
                 <Input
                   label="Login Password"
                   type="text"
-                  placeholder="Reset to 12345678"
+                  placeholder="New password (leave blank to keep current)"
                   value={studentToEdit.password || ''}
                   onChange={(e) => setStudentToEdit({ ...studentToEdit, password: e.target.value })}
                 />
